@@ -1,32 +1,4 @@
-# import torch
-# from torch.utils.data import Dataset
-# import os
-# from torchvision.io import read_image
-
-# class DetectionDataset(Dataset):
-#     img_dir = None
-#     label_dir = None
-#     img_list = None
-#     label_list = None
-
-#     def __init__(self, img_dir, label_dir, transform=None):
-#         self.img_dir = img_dir
-#         self.label_dir = label_dir
-#         self.transform = transform
-#         self.img_list = os.listdir(self.img_dir)
-#         self.label_list = os.listdir(self.label_dir)
-
-#     def __len__(self):
-#         return len(self.img_list)
-
-#     def __getitem__(self, idx):
-#         img_path = os.path.join(self.img_dir, self.img_list[idx])
-#         image = read_image(img_path)
-#         with open(os.path.join(self.label_dir, self.label_list[idx]), 'r') as f:
-#             label = torch.tensor([float(x) for x in f.read().split()])
-#         if self.transform:
-#             image = self.transform(image)
-#         return image, label
+#This is a custom dataset for the ultralytics YOLO detection model.
 
 import os
 from PIL import Image
@@ -62,6 +34,7 @@ class DetectionDataset(Dataset):
         
         return img, label_data.to_numpy()
     
+    #default transform function for the dataset will resize images to 640x640 and normalize them since YAML bounding box labels are normalized
     transform = T.Compose([
         T.Resize((640, 640)),
         T.ToTensor(),
