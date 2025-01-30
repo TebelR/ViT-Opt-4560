@@ -1,0 +1,1 @@
+#This class will generate synthetic seed images

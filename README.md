@@ -1,3 +1,7 @@
 # ViT-Opt-4560
 
-Testing webhook
+Needed packages from pip:
+ultralytics
+torch
+torchvision
+pandas
