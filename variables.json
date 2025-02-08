@@ -1,0 +1,5 @@
+{
+    "data_root": "data",
+    "data_path_detection": "detection",
+    "data_path_classification": "classification"
+}

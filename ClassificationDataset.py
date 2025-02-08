@@ -6,11 +6,10 @@ import pandas as pd
 
 class ClassificationDataset(Dataset):
 
-    image_files = None
+    image_files = []
     transform = None
     labels = None
     data_dir = None
-    num_images = 0
 
 
     def __init__(self, data_dir, transform=None):
@@ -21,17 +20,17 @@ class ClassificationDataset(Dataset):
         self.labels = os.listdir(data_dir)
         for label in self.labels:
             class_name = label
-            for image in os.listdir(data_dir + class_name):
-                self.image_files.append(image)
+            for image in os.listdir(os.path.join(data_dir, class_name)):
+                
                 #images may need to be renamed if this dataset has not been used before
-                if(not image.contains("_")):
+                if('_' in image):
                     os.rename(data_dir + class_name + "/" + image, data_dir + class_name + "/" + image + "_" + class_name)
-                self.num_images += 1
+                self.image_files.append(image)
         
 
 
     def __len__(self):
-        return self.num_images
+        return len(self.image_files)
 
 
 

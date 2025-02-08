@@ -5,9 +5,18 @@ import os
 from DetectionDataset import DetectionDataset
 from ClassificationDataset import ClassificationDataset
 from torch.utils.data import random_split
+import json
 
 class DataLoadingStation:
-    data_root = "../data/"
+    variables = None
+    with open("variables.json", "r") as f:
+        variables = json.load(f)
+
+
+    project_root = os.path.dirname(__file__)
+    data_root = os.path.join(project_root,  variables["data_root"])
+    detection_path = os.path.join(data_root, variables["data_path_detection"])
+    classification_path = os.path.join(data_root, variables["data_path_classification"])
     dataset_detection = None
 
     dataset_train_detection = None
@@ -18,12 +27,19 @@ class DataLoadingStation:
     dataset_validate_classification = None
     dataset_test_classification = None
 
-    TRAIN_SPLIT = 0.8
-    VALIDATE_SPLIT = 0.1
-    TEST_SPLIT = 0.1
+    #default splits for training, validation, and testing
+    TRAIN_SPLIT_DETECTION = 0.8
+    VALIDATE_SPLIT_DETECTION = 0.1
+    TEST_SPLIT_DETECTION = 0.1
+
+    TRAIN_SPLIT_CLASSIFICATION = 0.7
+    VALIDATE_SPLIT_CLASSIFICATION = 0.1001
+    TEST_SPLIT_CLASSIFICATION = 0.2
 
     BATCH_SIZE = 16
     NUM_WORKERS = 0
+
+    dataset_classification = None
 
     dl_train_detection = None
     dl_validate_detection = None
@@ -34,23 +50,27 @@ class DataLoadingStation:
     dl_test_classification = None
 
     def __init__(self):
-        self.load_data_detection(self.data_root)
+        pass
 
     
     #Loads images from the data directory defined by the path argument.
     #The DetectionDataset is a custom class that extends torch.utils.data.Dataset, it contains both images and labels for detection.
     #Originally, the dataset was following a YAML format, but this setup does not utilize that. Custom datasets are used instead, just in case we need to add more data later.
-    def load_data_detection(self):
-        self.dataset_detection = DetectionDataset(self.data_root + "detection/images/", self.data_root + "detection/labels/")
-        train_size = int(len(self.dataset_detection) * self.TRAIN_SPLIT)
-        validate_size = int(len(self.dataset_detection) * self.VALIDATE_SPLIT)
-        test_size = int(len(self.dataset_detection) * self.TEST_SPLIT)
+    def load_data_detection(self, training_split, validation_split, test_split):
+        self.TRAIN_SPLIT_DETECTION = training_split
+        self.VALIDATE_SPLIT_DETECTION = validation_split
+        self.TEST_SPLIT_DETECTION = test_split
+        self.dataset_detection = DetectionDataset(os.path.join(self.detection_path, "images"), os.path.join(self.detection_path, "labels"))
+        train_size = int(len(self.dataset_detection) * self.TRAIN_SPLIT_DETECTION)
+        validate_size = int(len(self.dataset_detection) * self.VALIDATE_SPLIT_DETECTION)
+        test_size = int(len(self.dataset_detection) * self.TEST_SPLIT_DETECTION)
 
         self.dataset_train_detection, self.dataset_validate_detection, self.dataset_test_detection = random_split(self.dataset_detection, [train_size, validate_size, test_size])
         print("Detection dataset loaded.")
         print("Train size:", len(self.dataset_train_detection))
         print("Validate size:", len(self.dataset_validate_detection))
         print("Test size:", len(self.dataset_test_detection))
+        print("Total size:", len(self.dataset_detection))
 
         self.dl_train_detection = DataLoader(self.dataset_train_detection, batch_size=self.BATCH_SIZE, shuffle=True, num_workers=self.NUM_WORKERS)
         self.dl_validate_detection = DataLoader(self.dataset_validate_detection, batch_size=self.BATCH_SIZE, shuffle=True, num_workers=self.NUM_WORKERS)
@@ -61,17 +81,25 @@ class DataLoadingStation:
 
 
 
-    def load_data_classification(self):
-        self.dataset_classification = ClassificationDataset(self.data_root + "classification/")
-        train_size = int(len(self.dataset_classification) * self.TRAIN_SPLIT)
-        validate_size = int(len(self.dataset_classification) * self.VALIDATE_SPLIT)
-        test_size = int(len(self.dataset_classification) * self.TEST_SPLIT)
+    def load_data_classification(self, training_split, validation_split, test_split):
+        self.TRAIN_SPLIT_CLASSIFICATION = training_split
+        self.VALIDATE_SPLIT_CLASSIFICATION = validation_split
+        self.TEST_SPLIT_CLASSIFICATION = test_split
+
+        self.dataset_classification = ClassificationDataset(self.classification_path)
+        train_size = int(len(self.dataset_classification) * self.TRAIN_SPLIT_CLASSIFICATION)
+        validate_size = int(len(self.dataset_classification) * self.VALIDATE_SPLIT_CLASSIFICATION)
+        test_size = int(len(self.dataset_classification) * self.TEST_SPLIT_CLASSIFICATION)
+        print("Train size:", (train_size))
+        print("Validate size:", (validate_size))
+        print("Test size:", (test_size))
+        print("Total size:", len(self.dataset_classification))
 
         self.dataset_train_classification, self.dataset_validate_classification, self.dataset_test_classification = random_split(self.dataset_classification, [train_size, validate_size, test_size])
         print("Classification dataset loaded.")
-        print("Train size:", len(self.dataset_train_classification))
-        print("Validate size:", len(self.dataset_validate_classification))
-        print("Test size:", len(self.dataset_test_classification))
+        # print("Train size:", len(self.dataset_train_classification))
+        # print("Validate size:", len(self.dataset_validate_classification))
+        # print("Test size:", len(self.dataset_test_classification))
 
         self.dl_train_classification = DataLoader(self.dataset_train_classification, batch_size=self.BATCH_SIZE, shuffle=True, num_workers=self.NUM_WORKERS)
         self.dl_validate_classification = DataLoader(self.dataset_validate_classification, batch_size=self.BATCH_SIZE, shuffle=True, num_workers=self.NUM_WORKERS)
@@ -79,6 +107,13 @@ class DataLoadingStation:
 
         print("Classification dataloaders created.")
 
+
+
+    def get_detection_data_path(self):
+        return self.detection_path
+    
+    def get_classification_data_path(self):
+        return self.classification_path
 
     
 
