@@ -14,7 +14,7 @@ class DetectionDataset(Dataset):
     def __init__(self, image_dir, label_dir, transform=None):
         self.image_dir = image_dir
         self.label_dir = label_dir
-        self.image_files = [f for f in os.listdir(image_dir) if f.endswith('.png')]
+        self.image_files = [f for f in os.listdir(image_dir) if f.endswith('.jpg')]
         self.transform = transform
 
     def __len__(self):
@@ -35,6 +35,7 @@ class DetectionDataset(Dataset):
         return img, label_data.to_numpy()
     
     #default transform function for the dataset will resize images to 640x640 and normalize them since YAML bounding box labels are normalized
+    #YOLO expects the labels to follow the format [class, x_center, y_center, width, height] where the last 4 parameters are normalized
     transform = T.Compose([
         T.Resize((640, 640)),
         T.ToTensor(),

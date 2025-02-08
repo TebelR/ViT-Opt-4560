@@ -2,7 +2,10 @@
 import torch
 from torch.utils.data import DataLoader
 import os
-from DetectionDataset import DetectionDataset, random_split
+from DetectionDataset import DetectionDataset
+from ClassificationDataset import ClassificationDataset
+from torch.utils.data import random_split
+
 class DataLoadingStation:
     data_root = "../data/"
     dataset_detection = None
@@ -11,16 +14,24 @@ class DataLoadingStation:
     dataset_validate_detection = None
     dataset_test_detection = None
 
+    dataset_train_classification = None
+    dataset_validate_classification = None
+    dataset_test_classification = None
+
     TRAIN_SPLIT = 0.8
     VALIDATE_SPLIT = 0.1
     TEST_SPLIT = 0.1
 
-    BATCH_SIZE = 2
+    BATCH_SIZE = 16
     NUM_WORKERS = 0
 
     dl_train_detection = None
     dl_validate_detection = None
     dl_test_detection = None
+
+    dl_train_classification = None
+    dl_validate_classification = None
+    dl_test_classification = None
 
     def __init__(self):
         self.load_data_detection(self.data_root)
@@ -46,3 +57,30 @@ class DataLoadingStation:
         self.dl_test_detection = DataLoader(self.dataset_test_detection, batch_size=self.BATCH_SIZE, shuffle=True, num_workers=self.NUM_WORKERS)
 
         print("Detection dataloaders created.")
+    #ALL OF THE ABOVE CODE MIGHT NOT BE NECESSARY, YOLOV11 TRAINS AND DOES INFERENCE FROM YAML DATA
+
+
+
+    def load_data_classification(self):
+        self.dataset_classification = ClassificationDataset(self.data_root + "classification/")
+        train_size = int(len(self.dataset_classification) * self.TRAIN_SPLIT)
+        validate_size = int(len(self.dataset_classification) * self.VALIDATE_SPLIT)
+        test_size = int(len(self.dataset_classification) * self.TEST_SPLIT)
+
+        self.dataset_train_classification, self.dataset_validate_classification, self.dataset_test_classification = random_split(self.dataset_classification, [train_size, validate_size, test_size])
+        print("Classification dataset loaded.")
+        print("Train size:", len(self.dataset_train_classification))
+        print("Validate size:", len(self.dataset_validate_classification))
+        print("Test size:", len(self.dataset_test_classification))
+
+        self.dl_train_classification = DataLoader(self.dataset_train_classification, batch_size=self.BATCH_SIZE, shuffle=True, num_workers=self.NUM_WORKERS)
+        self.dl_validate_classification = DataLoader(self.dataset_validate_classification, batch_size=self.BATCH_SIZE, shuffle=True, num_workers=self.NUM_WORKERS)
+        self.dl_test_classification = DataLoader(self.dataset_test_classification, batch_size=self.BATCH_SIZE, shuffle=True, num_workers=self.NUM_WORKERS)
+
+        print("Classification dataloaders created.")
+
+
+    
+
+
+
