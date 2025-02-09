@@ -1,5 +1,10 @@
 {
     "data_root": "data",
     "data_path_detection": "detection",
-    "data_path_classification": "classification"
+    "data_path_classification": "classification",
+    "model_root": "models",
+    "model_path_detection": "detection",
+    "model_path_classification": "classification",
+    "best_detection_index": 0,
+    "best_classification_index": 0
 }
