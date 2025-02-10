@@ -29,7 +29,7 @@ class TestModelLoading(unittest.TestCase):
 
     #Test instantiating the ModelLoadingStation class
     #Assert that it is not null
-    def testModelLoadingStation(self):
+    def test_1_ModelLoadingStation(self):
         print("\nTesting the instantiation of ModelLoadingStation")
         mls = ModelLoadingStation()
         self.assertIsNotNone(mls)
@@ -39,7 +39,7 @@ class TestModelLoading(unittest.TestCase):
 
     #Test loading brand new detection and classification models
     #Assert that they are not null
-    def testLoadNewModels(self):
+    def test_2_LoadNewModels(self):
         print("\nTesting the loading of new models")
         mls = ModelLoadingStation()
         mls.load_new_detection_standard_model()
@@ -50,7 +50,7 @@ class TestModelLoading(unittest.TestCase):
     
     #Test saving the models to an index of 0
     #Assert that they appear in the model directory
-    def testSaveModels(self):
+    def test_3_SaveModels(self):
         print("\nTesting the saving of models")
         mls = ModelLoadingStation()
         mls.load_new_detection_standard_model()
@@ -62,7 +62,7 @@ class TestModelLoading(unittest.TestCase):
 
     #Test that the index is incremented when saving a model
     #Assert that the index is 1 after saving a model, this will set the index back to what it was after the test
-    def testIncrementIndex(self):
+    def test_4_IncrementIndex(self):
         print("\nTesting the increment of the index")
         mls = ModelLoadingStation()
         best_det_index = mls.best_detection_index
@@ -87,8 +87,9 @@ class TestModelLoading(unittest.TestCase):
 
 
     #Test loading a saved model
-    #Assert that the model is not null
-    def testLoadSavedModel(self):
+    #Assert that the model is not null after loading
+    #This assumes that some models exist in the model directory
+    def test_5_LoadSavedModel(self):
         print("\nTesting the loading of saved models")
         mls = ModelLoadingStation()
         mls.load_saved_detection_model()
