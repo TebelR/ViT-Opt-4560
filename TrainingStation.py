@@ -5,6 +5,8 @@ import torchvision
 from ultralytics import YOLO
 from ultralytics.engine.trainer import BaseTrainer
 import AnalyticsModule as am
+from torch.utils.data import DataLoader
+from ultralytics.utils import DEFAULT_CFG
 
 class TrainingStation:
     num_epochs_detection = 1
@@ -47,22 +49,32 @@ class TrainingStation:
     def __init__(self, model_detection, model_classification, data_loader_d, data_loader_c):
         self.model_detection = model_detection
         self.model_classification = model_classification
-        self.buildTrainer(data_loader_d, data_loader_c)
+        self.buildTrainer( (data_loader_d).dataset , (data_loader_c).dataset)
 
 
 
     def buildTrainer(self, data_train, data_test):
-        self.yolo_trainer = BaseTrainer(
-            model=self.model_detection,
-            save_dir = self.detection_results,
-            wdir = self.detection_model_path,
-            save_period = 0, #disabled
-            batch_size = self.batch_size_detection,
-            epochs = self.num_epochs_detection,
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-            trainset = data_train,
-            testset = data_test
-        )
+        # self.yolo_trainer = BaseTrainer(
+            # model=self.model_detection,
+            # save_dir = self.detection_results,
+            # wdir = self.detection_model_path,
+            # save_period = 0, #disabled
+            # batch_size = self.batch_size_detection,
+            # epochs = self.num_epochs_detection,
+            # device = torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+            # trainset = data_train,
+            # testset = data_test
+        # )
+        self.yolo_trainer = BaseTrainer()
+        self.yolo_trainer.model=self.model_detection,
+        self.yolo_trainer.save_dir = self.detection_results,
+        self.yolo_trainer.wdir = self.detection_model_path,
+        self.yolo_trainer.save_period = 0, #disabled
+        self.yolo_trainer.batch_size = self.batch_size_detection,
+        self.yolo_trainer.epochs = self.num_epochs_detection,
+        self.yolo_trainer.device = torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+        self.yolo_trainer.trainset = data_train,
+        self.yolo_trainer.testset = data_test
 
 
 
