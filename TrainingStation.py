@@ -4,10 +4,12 @@ import json
 import torchvision
 from ultralytics import YOLO
 from ultralytics.engine.trainer import BaseTrainer
+import AnalyticsModule as am
+
 class TrainingStation:
-    num_epochs_detection = 3
+    num_epochs_detection = 1
     num_epochs_classification = 3
-    batch_size_detection = 10
+    batch_size_detection = 2
     batch_size_classification = 24
     num_workers = 4
     
@@ -67,7 +69,7 @@ class TrainingStation:
     
     def trainDetection(self, dl_train_detection, dl_validate_detection):
         results = (YOLO)(self.model_detection).train(trainer = self.yolo_trainer)
-        return results
+        am.graph_detection(results)
     
     
 
