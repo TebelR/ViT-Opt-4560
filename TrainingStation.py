@@ -2,8 +2,9 @@ import torch
 import os
 import json
 import torchvision
+from pathlib import Path
 from ultralytics import YOLO
-from ultralytics.engine.trainer import BaseTrainer
+from ultralytics.models.yolo.detect.train import DetectionTrainer
 import AnalyticsModule as am
 from torch.utils.data import DataLoader
 from ultralytics.utils import DEFAULT_CFG
@@ -46,42 +47,39 @@ class TrainingStation:
     detection_model_path = os.path.join(model_root, variables["model_path_detection"])
     classification_model_path = os.path.join(model_root, variables["model_path_classification"])
 
-    def __init__(self, model_detection, model_classification, data_loader_d, data_loader_c):
+    def __init__(self, model_detection : YOLO, model_classification, data_loader_d_train, data_loader_d_test):
         self.model_detection = model_detection
         self.model_classification = model_classification
-        self.buildTrainer( (data_loader_d).dataset , (data_loader_c).dataset)
+        self.buildTrainer()# (data_loader_d_train).dataset , (data_loader_d_test).dataset)
 
 
 
-    def buildTrainer(self, data_train, data_test):
-        # self.yolo_trainer = BaseTrainer(
-            # model=self.model_detection,
-            # save_dir = self.detection_results,
-            # wdir = self.detection_model_path,
-            # save_period = 0, #disabled
-            # batch_size = self.batch_size_detection,
-            # epochs = self.num_epochs_detection,
-            # device = torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-            # trainset = data_train,
-            # testset = data_test
-        # )
-        self.yolo_trainer = BaseTrainer()
-        self.yolo_trainer.model=self.model_detection,
-        self.yolo_trainer.save_dir = self.detection_results,
-        self.yolo_trainer.wdir = self.detection_model_path,
-        self.yolo_trainer.save_period = 0, #disabled
-        self.yolo_trainer.batch_size = self.batch_size_detection,
-        self.yolo_trainer.epochs = self.num_epochs_detection,
-        self.yolo_trainer.device = torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-        self.yolo_trainer.trainset = data_train,
-        self.yolo_trainer.testset = data_test
-
+    def buildTrainer(self):#, detection_dataset_train, detection_dataset_test):
+        self.yolo_trainer = DetectionTrainer(overrides={
+            'model' : self.model_detection.ckpt_path,
+            'data' : 'data/detection/data.yaml',
+            'epochs' : self.num_epochs_detection,
+            'batch' : self.batch_size_detection,
+            'save_dir' : self.detection_results,
+            'workers' : self.num_workers,
+            'imgsz' : 640,
+            'device' : 'cuda' if torch.cuda.is_available() else 'cpu',
+            #'wdir' : self.detection_model_path,
+            'save_period' : 0,#do not save checkpoints
+            #'trainset' : detection_dataset_train,
+            #'testset' : detection_dataset_test
+        })
+        # self.yolo_trainer.trainset = detection_dataset_train
+        # self.yolo_trainer.testset = detection_dataset_test
+        self.yolo_trainer.save_dir = (Path)(self.detection_results)
+        self.yolo_trainer.wdir = (Path)(self.detection_model_path)
 
 
     
-    def trainDetection(self, dl_train_detection, dl_validate_detection):
-        results = (YOLO)(self.model_detection).train(trainer = self.yolo_trainer)
-        am.graph_detection(results)
+    def trainDetection(self):
+        self.yolo_trainer.train()
+        #am.graph_detection(results)
+        print("Detection training finished")
     
     
 
