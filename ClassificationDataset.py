@@ -10,7 +10,7 @@ class ClassificationDataset(Dataset):
     transform = None
     labels = None
     data_dir = None
-
+    num_classes = 0
 
     def __init__(self, data_dir, transform=None):
         self.data_dir = data_dir
@@ -18,6 +18,7 @@ class ClassificationDataset(Dataset):
         #the image_files variable here is almost like a dictionary, where images are stored for each label
         #It is assumed that labels are also the names of files that contain corresponding images
         self.labels = os.listdir(data_dir)
+        num_classes = len(self.labels)
         for label in self.labels:
             class_name = label
             for image in os.listdir(os.path.join(data_dir, class_name)):

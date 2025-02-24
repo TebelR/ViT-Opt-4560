@@ -85,14 +85,26 @@ class ModelLoadingStation:
             print(e)
 
 
+    #customize this method on the fly
+    def load_trained_detection_model(self):
+        self.cur_detection_model = YOLO(os.path.join(self.detection_model_path, "yolo11n.pt"))
+        self.cur_detection_model.load_state_dict(torch.load(os.path.join(self.project_root, "runs/detect/best100/weights/best.pt")))
+        self.cur_detection_model.to(self.device)
+        print("Loaded a trained detection model.")
+
 
 
     #Classification section----------------------------------------------------------------------------------------------------------------------------
 
     #Loads a saved classification model from the model directory based on index. If no index is given - this loads the model with the highest index (newest one).
+    #The model itself exists in models/vit-model.pt
+    #This will load the model and then look for best weights stored in models/classification/vit#.pt
     def load_saved_classification_model(self,index=None):
         if index is None:
-            self.cur_classification_model = torch.load(os.path.join(self.classification_model_path, "vit" + str(self.best_classification_index) + ".pt"))
+            # self.cur_classification_model = torch.load(os.path.join(self.classification_model_path, "vit" + str(self.best_classification_index) + ".pt"))
+            self.cur_classification_model = torch.load(os.path.join(self.model_root, "vit-model.pt"), weights_only=False)
+            self.cur_classification_model.load_state_dict(torch.load(os.path.join(self.classification_model_path, "vit" + str(self.best_classification_index) + ".pt")))
+            self.cur_classification_model.to(self.device)
             print("Loaded a saved classification model. Index: " + str(self.best_classification_index))
         else:
             self.cur_classification_model = torch.load(os.path.join(self.classification_model_path, "vit" + str(index) + ".pt"))
@@ -109,11 +121,11 @@ class ModelLoadingStation:
     def overwrite_saved_classification_model(self,index):
         if os.path.exists(os.path.join(self.classification_model_path, "vit" + str(index) + ".pt")):
             save_path = os.path.join(self.classification_model_path, "vit" + str(index) + ".pt")
-            torch.save(self.cur_classification_model, save_path)
+            torch.save(self.cur_classification_model.state_dict(), save_path)
             print("Overwrote a classification model. Index: " + str(index))
         else:
             save_path = os.path.join(self.classification_model_path, "vit" + str(index) + ".pt")
-            torch.save(self.cur_classification_model, save_path)
+            torch.save(self.cur_classification_model.state_dict(), save_path)
             print("Tried to overwrite a classification model that did not exist. Saving it instead at index: " + str(index))
 
     #Saves the current classification model to the model directory and appends the index to the filename.
@@ -122,12 +134,21 @@ class ModelLoadingStation:
         try:
             self.best_classification_index += 1
             save_path = os.path.join(self.classification_model_path, "vit" + str(self.best_classification_index) + ".pt")
-            torch.save(self.cur_classification_model, save_path)
+            torch.save(self.cur_classification_model.state_dict(), save_path)
             print("Saved a classification model. Index: " + str(self.best_classification_index))
         except Exception as e:
             self.best_classification_index = old_index
             print("Failed to save classification model. Index: " + str(self.best_classification_index))
             print(e)
+
+
+    def load_trained_classification_model(self):
+        self.cur_classification_model = torch.load(os.path.join(self.model_root, "vit-model.pt"), weights_only=False)
+        self.cur_classification_model.load_state_dict(torch.load(os.path.join(self.project_root, "runs/classify/best/weights/best.pt")))
+        self.cur_classification_model.to(self.device)
+        print("Loaded a trained classification model.")
+
+
     
 
 

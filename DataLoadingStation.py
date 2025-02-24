@@ -39,6 +39,8 @@ class DataLoadingStation:
     BATCH_SIZE = 16
     NUM_WORKERS = 0
 
+    num_classes = 0
+
     dataset_classification = None
 
     dl_train_detection = None
@@ -81,12 +83,16 @@ class DataLoadingStation:
 
 
 
+
+    #This will make one giant dataset of images with respective labels for classification - no need to divide the dataset into train, test, validate.
+    #The dataset is then randomly split based on arguments into train, validate, and test datasets.
     def load_data_classification(self, training_split, validation_split, test_split):
         self.TRAIN_SPLIT_CLASSIFICATION = training_split
         self.VALIDATE_SPLIT_CLASSIFICATION = validation_split
         self.TEST_SPLIT_CLASSIFICATION = test_split
 
         self.dataset_classification = ClassificationDataset(self.classification_path)
+        self.num_classes = len(self.dataset_classification.num_classes)
         train_size = int(len(self.dataset_classification) * self.TRAIN_SPLIT_CLASSIFICATION)
         validate_size = int(len(self.dataset_classification) * self.VALIDATE_SPLIT_CLASSIFICATION)
         test_size = int(len(self.dataset_classification) * self.TEST_SPLIT_CLASSIFICATION)
