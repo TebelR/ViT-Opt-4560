@@ -13,6 +13,9 @@ import torchvision
 from ultralytics import YOLO
 
 class ModelLoadingStation:
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     variables = None
     with open("variables.json", "r") as f:
         variables = json.load(f)
@@ -98,8 +101,9 @@ class ModelLoadingStation:
 
     
     def load_new_classification_model(self):
-        self.cur_classification_model = torchvision.models.swin_v2_t(weights='DEFAULT')
+        self.cur_classification_model = torchvision.models.swin_v2_t(weights='DEFAULT').to(self.device)
         print("Loaded a new classification model.")
+        
 
     #Saves the current classification model and overwirtes the specified index with it.
     def overwrite_saved_classification_model(self,index):
