@@ -1,9 +1,12 @@
 import json
 import os
-from PIL import Image
+#from PIL import Image
 import torchvision.transforms as T
 from torch.utils.data import Dataset
-import pandas as pd
+import numpy
+import torch
+# import pandas as pd
+import torchvision.io as io
 
 class ClassificationDataset(Dataset):
 
@@ -12,13 +15,14 @@ class ClassificationDataset(Dataset):
     labels = None
     data_dir = None
     num_classes = 0
-
+    indexed_classes = {}
     variables = None
-    with open(variables["variables_path"], "r") as f:
+    with open("variables.json", "r") as f:
         variables = json.load(f)
 
     path_to_data = os.path.join(os.path.dirname(__file__), variables["data_root"], variables["data_path_classification"])
         
+    
 
     def __init__(self, data_dir, transform=None):
         self.data_dir = data_dir
@@ -26,14 +30,12 @@ class ClassificationDataset(Dataset):
         #the image_files variable here is almost like a dictionary, where images are stored for each label
         #It is assumed that labels are also the names of files that contain corresponding images
         self.labels = os.listdir(data_dir)
-        num_classes = len(self.labels)
+        self.num_classes = len(self.labels)
+
         for label in self.labels:
-            class_name = label
-            for image in os.listdir(os.path.join(data_dir, class_name)):
-                
-                #images may need to be renamed if this dataset has not been used before
-                if('_' in image):
-                    os.rename(data_dir + class_name + "/" + image, data_dir + class_name + "/" + image + "_" + class_name)
+            self.indexed_classes[label] = self.labels.index(label)
+
+            for image in os.listdir(os.path.join(data_dir, label)):
                 self.image_files.append(image)
         
 
@@ -44,20 +46,29 @@ class ClassificationDataset(Dataset):
 
 
     def __getitem__(self, idx):
-        img_path = os.path.join(self.data_dir, self.labels[idx]) + "/" + self.image_files[idx]#LEFT OFF HERE------------------make sure that path is correct for images
-        img = Image.open(img_path).convert("RGB")
+        #img_path = os.path.join(self.data_dir, self.labels[idx]) + "/" + self.image_files[idx]
+        image_f_name = self.image_files[idx]
+        image_name_only = image_f_name.split(".")[0]#triple curse
+        image_class_substring = image_name_only.split("_")[1:]
+        image_class = " ".join(image_class_substring)
+        img_path = os.path.join(self.data_dir, image_class) + "/" + image_f_name
+        #img = Image.open(img_path).convert("RGB")
+        img = io.decode_image(img_path, mode="RGB")
+        #img = numpy.array(img)
         #the label for classification images is the name of the outer file that contains them
-        tokens = img_path.split("_")
-        label = tokens[-1]
+        # tokens = img_path.split("_")
+        # label = tokens[-1]
 
         # Apply transformations
-        if self.transform:
-            img = self.transform(img)
+        #if self.transform:
+        transform = T.Compose([
+            T.Resize((192, 272)),
+            #T.ToTensor(),
+            #T.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+        ])
+        img = transform(img.to(torch.float32)/255.0)
+        # img = numpy.array(img)
 
-        return img, label
+        return img, self.indexed_classes[image_class]
     
-    transform = T.Compose([
-        T.Resize((192, 272)),
-        T.ToTensor(),
-        T.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-    ])
+    

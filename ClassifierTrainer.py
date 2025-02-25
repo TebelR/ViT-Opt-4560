@@ -1,5 +1,5 @@
 import json
-import random
+#import random
 # import time
 import torch
 from torch import nn, optim
@@ -11,7 +11,8 @@ from torchvision.models import swin_v2_t
 from timeit import default_timer as timer 
 import os
 from torch.optim.lr_scheduler import StepLR
-import tqdm
+from tqdm import tqdm
+import PIL.Image as Image
 from sklearn.metrics import precision_score, recall_score
 from torch.utils.tensorboard import SummaryWriter
 
@@ -87,33 +88,35 @@ class ClassifierTrainer:
             print(f"Epoch {epoch+1}/{self.num_epochs}")
             start_time = timer()
             avg_loss = 0
-            for i in range(len(self.train_dl)):
+            for i in tqdm(range(len(self.train_dl)), desc="Batch progress", unit="batch"):
                 losses = []
 
                 transform = T.Compose([
-                    T.RandomHorizontalFlip(),
-                    T.RandomRotation(random.randint(1, 359)),
-                    T.RandomAffine(0, translate=(0.2, 0.2), scale=(0.8, 1.2), shear=10),
-                    T.ToTensor(),
+                    T.RandomAffine(degrees=90, translate=(0.1, 0.1), scale=(0.9, 1.1)),
+                    #T.ToTensor(),
                     T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
                 ])
             
 
                 images, labels = next(iter(self.train_dl))
-
+                self.model.to(self.device)
                 for i in range(self.num_instances):#run through multiple instances with different augmentations applied to the batch
-
+                    augmented_imgs = []
                     for image in images:
-                        image = transform(image)# apply random transformations
-                    images, labels = images.to(self.device), labels.to(self.device)
+                        aug_img = transform(image)#.to(torch.float32)/255.0)
+                        augmented_imgs.append(aug_img)
+                    
+                    augmented_imgs = torch.stack(augmented_imgs)
+                    augmented_imgs = augmented_imgs.to(self.device)
+                    labels = labels.to(self.device)
                     self.optimizer.zero_grad()
-                    outputs = self.model(images)
+                    outputs = self.model(augmented_imgs)
                     loss = self.criterion(outputs, labels)#THIS MAY NOT WORK
-                    losses.append(loss.item())
-                    _, preds = torch.max(outputs, 1)  # Get predicted class indices
+                    losses.append(loss)
+                    #_, preds = torch.max(outputs, 1)  # Get predicted class indices
 
-                avg_loss = sum(losses) / len(losses)
-                (nn.CrossEntropyLoss)(avg_loss).backward()#This may not work either
+                avg_loss = torch.mean(torch.stack(losses))
+                avg_loss.backward()#This may not work either
                 self.optimizer.step()
 
             self.scheduler.step()#move the learning rate
@@ -132,10 +135,10 @@ class ClassifierTrainer:
                     _, preds = torch.max(outputs, 1)  # Get predicted class indices
                     correct += (preds == labels).sum().item()
                     total += labels.size(0)
-                    precision += precision_score(labels.cpu().numpy(), preds.cpu().numpy(), average='macro')
-                    recall += recall_score(labels.cpu().numpy(), preds.cpu().numpy(), average='macro')
+                    precision += precision_score(labels.cpu().numpy(), preds.cpu().numpy(), average='macro', zero_division=1)
+                    recall += recall_score(labels.cpu().numpy(), preds.cpu().numpy(), average='macro', zero_division=1)
 
-            epoch_accuracy = 100 * correct / total
+            epoch_accuracy =  correct / total
             learning_rate = self.scheduler.get_last_lr()
             precision = precision / len(self.test_dl)
             recall = recall / len(self.test_dl)
@@ -182,7 +185,7 @@ class ClassifierTrainer:
 
     def save_training_data(self):
         data = None
-        with open(self.project_root + "variables.json") as f:
+        with open(os.path.join(self.project_root, "variables.json")) as f:
             data = json.load(f)
         train_index = data["best_classification_index"]
         data["best_classification_index"] += 1
@@ -201,3 +204,5 @@ class ClassifierTrainer:
         
         with open(self.project_root + "variables.json", "w") as f:
             json.dump(data, f)
+
+
