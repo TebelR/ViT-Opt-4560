@@ -36,7 +36,10 @@ class ClassificationDataset(Dataset):
             self.indexed_classes[label] = self.labels.index(label)
 
             for image in os.listdir(os.path.join(data_dir, label)):
-                self.image_files.append(image)
+                image_name = image.split(".")[0].split("_")[0]
+                img_name_reformatted = image_name + "_" + label + ".jpg"
+                os.rename(os.path.join(data_dir, label, image), os.path.join(data_dir, label, img_name_reformatted))
+                self.image_files.append(img_name_reformatted)
         
 
 
@@ -50,8 +53,8 @@ class ClassificationDataset(Dataset):
         image_f_name = self.image_files[idx]
         image_name_only = image_f_name.split(".")[0]#triple curse
         image_class_substring = image_name_only.split("_")[1:]
-        image_class = " ".join(image_class_substring)
-        img_path = os.path.join(self.data_dir, image_class) + "/" + image_f_name
+        image_class = "_".join(image_class_substring)
+        img_path = os.path.join(self.data_dir, image_class, image_f_name)
         #img = Image.open(img_path).convert("RGB")
         img = io.decode_image(img_path, mode="RGB")
         #img = numpy.array(img)

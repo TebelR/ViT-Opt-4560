@@ -6,4 +6,7 @@ data_dir = os.path.join(project, "data", "classification")
 
 
 for label in os.listdir(data_dir):
-    os.rename(os.path.join(data_dir, label), os.path.join(data_dir, label.replace(u'\xa0', " ")))
+    if(label.__contains__(u'\xa0')):
+        os.rename(os.path.join(data_dir, label), os.path.join(data_dir, label.replace(u'\xa0', "_")))
+    else:
+        os.rename(os.path.join(data_dir, label), os.path.join(data_dir, label.replace(" ", "_")))

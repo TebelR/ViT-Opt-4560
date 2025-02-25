@@ -160,7 +160,7 @@ class ClassifierTrainer:
             #group epoch data
             epoch_data = {
                 "epoch" : epoch,
-                "loss" : avg_loss,
+                "loss" : avg_loss.item(),
                 "accuracy" : epoch_accuracy,
                 "precision" : precision,
                 "recall" : recall,
