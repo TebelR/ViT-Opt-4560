@@ -147,17 +147,3 @@ class ModelLoadingStation:
         self.cur_classification_model.load_state_dict(torch.load(os.path.join(self.project_root, "runs/classify/best/weights/best.pt")))
         self.cur_classification_model.to(self.device)
         print("Loaded a trained classification model.")
-
-
-    
-
-
-
-    
-
-
-
-
-
-
-

@@ -1,3 +1,4 @@
+import json
 import os
 from PIL import Image
 import torchvision.transforms as T
@@ -11,6 +12,13 @@ class ClassificationDataset(Dataset):
     labels = None
     data_dir = None
     num_classes = 0
+
+    variables = None
+    with open(variables["variables_path"], "r") as f:
+        variables = json.load(f)
+
+    path_to_data = os.path.join(os.path.dirname(__file__), variables["data_root"], variables["data_path_classification"])
+        
 
     def __init__(self, data_dir, transform=None):
         self.data_dir = data_dir
@@ -36,7 +44,7 @@ class ClassificationDataset(Dataset):
 
 
     def __getitem__(self, idx):
-        img_path = self.image_files[idx]
+        img_path = os.path.join(self.data_dir, self.labels[idx]) + "/" + self.image_files[idx]#LEFT OFF HERE------------------make sure that path is correct for images
         img = Image.open(img_path).convert("RGB")
         #the label for classification images is the name of the outer file that contains them
         tokens = img_path.split("_")

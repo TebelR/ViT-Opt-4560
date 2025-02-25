@@ -9,13 +9,14 @@ def main():
     print("Starting pipeline")
     print("Loading data")
     dls = DataLoadingStation()
-    #dls.load_data_detection(0.8, 0.1, 0.1)
+    dls.load_data_classification(0.7, 0.1001, 0.2)
     mls = ModelLoadingStation()
-    #mls.load_new_detection_standard_model()
+    mls.load_new_classification_model()
+
     print("Training")
-    ts = TrainingStation(mls.cur_detection_model, None, dls.dl_train_detection, dls.dl_test_detection)
-    # ts.trainDetection()
-    # print("Pipeline finished")
+    ts = TrainingStation(None, mls.cur_classification_model)
+    ts.trainClassification(dls.dl_train_classification, dls.dl_validate_classification, dls.dl_test_classification, dls.num_classes)
+    print("Pipeline finished")
 
 
 if __name__ == "__main__":

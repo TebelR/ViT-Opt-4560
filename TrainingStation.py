@@ -5,6 +5,7 @@ import torchvision
 from pathlib import Path
 from ultralytics import YOLO
 from ultralytics.models.yolo.detect.train import DetectionTrainer
+from ClassifierTrainer import ClassifierTrainer
 import AnalyticsModule as am
 from torch.utils.data import DataLoader
 from ultralytics.utils import DEFAULT_CFG
@@ -13,7 +14,6 @@ class TrainingStation:
     num_epochs_detection = 1
     num_epochs_classification = 3
     batch_size_detection = 2
-    batch_size_classification = 24
     num_workers = 4
     
 
@@ -23,16 +23,12 @@ class TrainingStation:
     weight_decay_detection = 0.0005
     frozen_layers_detection = 20
 
-    #variables for classification training
-    learning_rate_classification = 0.0001
-    num_heads = 2
-    patch_size = 16
-
 
     model_detection = None
     model_classification = None
     
     yolo_trainer = None
+    vit_trainer = None
 
     variables = None
     with open("variables.json", "r") as f:
@@ -47,10 +43,11 @@ class TrainingStation:
     detection_model_path = os.path.join(model_root, variables["model_path_detection"])
     classification_model_path = os.path.join(model_root, variables["model_path_classification"])
 
-    def __init__(self, model_detection : YOLO, model_classification, data_loader_d_train, data_loader_d_test):
+    def __init__(self, model_detection : YOLO, model_classification):
         self.model_detection = model_detection
         self.model_classification = model_classification
-        self.buildTrainer()# (data_loader_d_train).dataset , (data_loader_d_test).dataset)
+        # if(model_detection != None):
+        #     self.buildTrainer()# (data_loader_d_train).dataset , (data_loader_d_test).dataset)
 
 
 
@@ -77,9 +74,16 @@ class TrainingStation:
 
     
     def trainDetection(self):
+        self.buildTrainer()
         self.yolo_trainer.train()
         #am.graph_detection(results)
         print("Detection training finished")
+
+    def trainClassification(self, train_dl, valid_dl, test_dl, num_classes):
+        self.vit_trainer = ClassifierTrainer(train_dl, valid_dl, test_dl, self.model_classification, num_classes)
+        if(self.vit_trainer != None):
+            self.vit_trainer.train()
+
     
     
 
