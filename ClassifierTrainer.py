@@ -1,6 +1,7 @@
 import json
 #import random
 # import time
+import numpy as np
 import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
@@ -21,10 +22,10 @@ class ClassifierTrainer:
     num_classes = 0
     test_set = None
     train_set = None
-    valid_set = None
+    # valid_set = None
 
     train_dl = None
-    valid_dl = None
+    # valid_dl = None
     test_dl = None
     
     model = None
@@ -37,8 +38,8 @@ class ClassifierTrainer:
     start_time = timer()
 
     learning_rate = 0.0001
-    num_epochs = 1
-    num_instances = 5#run through each batch 5 tiems
+    num_epochs = 50
+    num_instances = 2#run through each batch this many tiems
     criterion = nn.CrossEntropyLoss()
     optimizer = None
     scheduler = None
@@ -52,16 +53,16 @@ class ClassifierTrainer:
     }
 
     #This assumes that the model has the weights that it wants to use prior to instantiating this class
-    def __init__(self, train_dl : DataLoader, valid_dl : DataLoader, test_dl : DataLoader, model : swin_v2_t, num_classes):
+    def __init__(self, train_dl : DataLoader, test_dl : DataLoader, model : swin_v2_t, num_classes):
         self.train_dl = train_dl
-        self.valid_dl = valid_dl
+        # self.valid_dl = valid_dl
         self.test_dl = test_dl
         self.model = model
 
         self.num_classes = num_classes
 
         self.train_set = train_dl.dataset
-        self.valid_set = valid_dl.dataset
+        # self.valid_set = valid_dl.dataset
         self.test_set = test_dl.dataset
 
         for param in model.parameters():#freeze all layers
@@ -73,8 +74,8 @@ class ClassifierTrainer:
         for param in model.head.parameters():#unfreeze the head
             param.requires_grad = True
 
-        self.optimizer = optim.Adam(model.parameters(), lr=self.learning_rate)
-        self.scheduler = StepLR(self.optimizer, step_size=10, gamma=0.1)
+        self.optimizer = optim.AdamW(model.parameters(), lr=self.learning_rate)
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.num_epochs)#gamma=0.1)
     
 
 
@@ -92,22 +93,27 @@ class ClassifierTrainer:
                 losses = []
 
                 transform = T.Compose([
-                    T.RandomAffine(degrees=90, translate=(0.1, 0.1), scale=(0.9, 1.1)),
                     #T.ToTensor(),
+                    T.RandomAffine(degrees=180, translate=(0.1, 0.1), scale=(0.9, 1.1)),
+                    T.ColorJitter(0.3, 0.3, 0.3, 0.3),
+                    T.RandomErasing(p=0.3),
                     T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
                 ])
             
 
                 images, labels = next(iter(self.train_dl))
                 self.model.to(self.device)
+                augmented_imgs = []
+                for image in images:
+                    aug_img = transform(image)
+                    augmented_imgs.append(aug_img)
+                augmented_imgs = torch.stack(augmented_imgs)
+                augmented_imgs = augmented_imgs.to(self.device)
+                
                 for i in range(self.num_instances):#run through multiple instances with different augmentations applied to the batch
-                    augmented_imgs = []
-                    for image in images:
-                        aug_img = transform(image)#.to(torch.float32)/255.0)
-                        augmented_imgs.append(aug_img)
                     
-                    augmented_imgs = torch.stack(augmented_imgs)
-                    augmented_imgs = augmented_imgs.to(self.device)
+                    
+                    
                     labels = labels.to(self.device)
                     self.optimizer.zero_grad()
                     outputs = self.model(augmented_imgs)
@@ -171,11 +177,11 @@ class ClassifierTrainer:
             
             self.training_data.append(epoch_data)
             self.weights["last"] = self.model.state_dict()
-            print(f"Loss: {sum(losses)/len(losses):.4f}, Accuracy: {epoch_accuracy:.2f}%, Precision: {precision:.2f}, Recall: {recall:.2f}, Learning Rate: {learning_rate[0]:.4f}, Time: {end_time-start_time:.2f} seconds")
+            print(f"Loss: {avg_loss.item():.4f}, Accuracy: {epoch_accuracy:.2f}%, F1: {f1:.3f}, Precision: {precision:.2f}, Recall: {recall:.2f}, Learning Rate: {learning_rate[0]:.10f}, Time: {end_time-start_time:.2f} seconds")
 
         total_end_time = timer()
         print("Training complete. Saving weigths...")
-        print(f"[INFO] Total training time: {total_end_time-total_start_time:.3f} seconds")
+        print(f"Total training time: {total_end_time-total_start_time:.3f} seconds")
         
         self.save_training_data()
         writer.close()

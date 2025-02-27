@@ -9,7 +9,7 @@ def main():
     print("Starting pipeline")
     print("Loading data")
     dls = DataLoadingStation()
-    dls.load_data_classification(0.7, 0.1001, 0.2)
+    dls.load_data_classification(0.9, 0.1001)# the test set wont be used so it does not matter what we set it to
     mls = ModelLoadingStation()
     mls.load_new_classification_model()
 

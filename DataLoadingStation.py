@@ -86,22 +86,22 @@ class DataLoadingStation:
 
     #This will make one giant dataset of images with respective labels for classification - no need to divide the dataset into train, test, validate.
     #The dataset is then randomly split based on arguments into train, validate, and test datasets.
-    def load_data_classification(self, training_split, validation_split, test_split):
+    def load_data_classification(self, training_split, validation_split):#, test_split):
         self.TRAIN_SPLIT_CLASSIFICATION = training_split
         self.VALIDATE_SPLIT_CLASSIFICATION = validation_split
-        self.TEST_SPLIT_CLASSIFICATION = test_split
+        #self.TEST_SPLIT_CLASSIFICATION = test_split
 
         self.dataset_classification = ClassificationDataset(self.classification_path)
         self.num_classes = self.dataset_classification.num_classes
         train_size = int(len(self.dataset_classification) * self.TRAIN_SPLIT_CLASSIFICATION)
         validate_size = int(len(self.dataset_classification) * self.VALIDATE_SPLIT_CLASSIFICATION)
-        test_size = int(len(self.dataset_classification) * self.TEST_SPLIT_CLASSIFICATION)
+        #test_size = int(len(self.dataset_classification) * self.TEST_SPLIT_CLASSIFICATION)
         print("Train size:", (train_size))
         print("Validate size:", (validate_size))
-        print("Test size:", (test_size))
+        #print("Test size:", (test_size))
         print("Total size:", len(self.dataset_classification))
 
-        self.dataset_train_classification, self.dataset_validate_classification, self.dataset_test_classification = random_split(self.dataset_classification, [train_size, validate_size, test_size])
+        self.dataset_train_classification, self.dataset_validate_classification = random_split(self.dataset_classification, [train_size, validate_size])#, test_size]) , self.dataset_test_classification
         print("Classification dataset loaded.")
         # print("Train size:", len(self.dataset_train_classification))
         # print("Validate size:", len(self.dataset_validate_classification))
@@ -109,7 +109,7 @@ class DataLoadingStation:
 
         self.dl_train_classification = DataLoader(self.dataset_train_classification, batch_size=self.BATCH_SIZE, shuffle=True, num_workers=self.NUM_WORKERS)
         self.dl_validate_classification = DataLoader(self.dataset_validate_classification, batch_size=self.BATCH_SIZE, shuffle=True, num_workers=self.NUM_WORKERS)
-        self.dl_test_classification = DataLoader(self.dataset_test_classification, batch_size=self.BATCH_SIZE, shuffle=True, num_workers=self.NUM_WORKERS)
+        #self.dl_test_classification = DataLoader(self.dataset_test_classification, batch_size=self.BATCH_SIZE, shuffle=True, num_workers=self.NUM_WORKERS)
 
         print("Classification dataloaders created.")
 

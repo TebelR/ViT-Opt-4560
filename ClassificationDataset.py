@@ -1,6 +1,6 @@
 import json
 import os
-#from PIL import Image
+from PIL import Image
 import torchvision.transforms as T
 from torch.utils.data import Dataset
 import numpy
@@ -38,7 +38,7 @@ class ClassificationDataset(Dataset):
             for image in os.listdir(os.path.join(data_dir, label)):
                 image_name = image.split(".")[0].split("_")[0]
                 img_name_reformatted = image_name + "_" + label + ".jpg"
-                os.rename(os.path.join(data_dir, label, image), os.path.join(data_dir, label, img_name_reformatted))
+                #os.rename(os.path.join(data_dir, label, image), os.path.join(data_dir, label, img_name_reformatted)) #uncomment if data looks strange
                 self.image_files.append(img_name_reformatted)
         
 
@@ -67,10 +67,14 @@ class ClassificationDataset(Dataset):
         transform = T.Compose([
             T.Resize((192, 272)),
             #T.ToTensor(),
-            #T.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+            # T.RandomAffine(degrees=180, translate=(0.1, 0.1), scale=(0.9, 1.1)),
+            # T.ColorJitter(0.3, 0.3, 0.3, 0.3),
+            # T.RandomErasing(p=0.3),
+            
+            # T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
         img = transform(img.to(torch.float32)/255.0)
-        # img = numpy.array(img)
+        #img = numpy.array(img)
 
         return img, self.indexed_classes[image_class]
     

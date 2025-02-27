@@ -6,9 +6,9 @@ from pathlib import Path
 from ultralytics import YOLO
 from ultralytics.models.yolo.detect.train import DetectionTrainer
 from ClassifierTrainer import ClassifierTrainer
-import AnalyticsModule as am
-from torch.utils.data import DataLoader
-from ultralytics.utils import DEFAULT_CFG
+# import AnalyticsModule as am
+# from torch.utils.data import DataLoader
+# from ultralytics.utils import DEFAULT_CFG
 
 class TrainingStation:
     num_epochs_detection = 1
@@ -80,7 +80,7 @@ class TrainingStation:
         print("Detection training finished")
 
     def trainClassification(self, train_dl, valid_dl, test_dl, num_classes):
-        self.vit_trainer = ClassifierTrainer(train_dl, valid_dl, test_dl, self.model_classification, num_classes)
+        self.vit_trainer = ClassifierTrainer(train_dl, valid_dl, self.model_classification, num_classes)
         if(self.vit_trainer != None):
             self.vit_trainer.train()
 
