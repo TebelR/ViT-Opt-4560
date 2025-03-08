@@ -2,21 +2,35 @@
 from DataLoadingStation import DataLoadingStation
 from TrainingStation import TrainingStation
 from ModelLoadingStation import ModelLoadingStation
-
+from InferenceStation import InferenceStation
 
 
 def main():
-    print("Starting pipeline")
-    print("Loading data")
-    dls = DataLoadingStation()
-    dls.load_data_classification(0.9, 0.1001)# the test set wont be used so it does not matter what we set it to
-    mls = ModelLoadingStation()
-    mls.load_new_classification_model()
+    # print("Starting pipeline")
+    # print("Loading data")
+    # dls = DataLoadingStation()
+    # dls.load_data_classification(0.9, 0.1001)# the test set wont be used so it does not matter what we set it to
+    # mls = ModelLoadingStation()
+    # mls.load_new_classification_model()
 
-    print("Training")
-    ts = TrainingStation(None, mls.cur_classification_model)
-    ts.trainClassification(dls.dl_train_classification, dls.dl_validate_classification, dls.dl_test_classification, dls.num_classes)
-    print("Pipeline finished")
+    # print("Training")
+    # ts = TrainingStation(None, mls.cur_classification_model)
+    # ts.trainClassification(dls.dl_train_classification, dls.dl_validate_classification, dls.dl_test_classification, dls.num_classes)
+    # print("Pipeline finished")
+
+    print("Starting inference pipeline")
+    print("looking for input image")
+    dls = DataLoadingStation()
+    image = dls.load_inference_image("testInput.jpg")
+    mls = ModelLoadingStation()
+    mls.load_saved_classification_model()
+    mls.load_saved_detection_model()
+
+    print("Running inference")
+    inferS = InferenceStation()
+    print(inferS.inferOnClassification(image, mls.cur_classification_model))
+    print(inferS.inferOnDetection("testInput.jpg", mls.cur_detection_model))
+    inferS.inferOnCombined(image, mls.cur_detection_model, mls.cur_classification_model)
 
 
 if __name__ == "__main__":

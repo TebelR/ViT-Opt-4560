@@ -11,6 +11,7 @@ import os
 import json
 import torchvision
 from ultralytics import YOLO
+from torch import nn
 
 class ModelLoadingStation:
 
@@ -50,7 +51,9 @@ class ModelLoadingStation:
     #Loads a saved detection model from the model directory based on index. If no index is given - this loads the model with the highest index (newest one).
     def load_saved_detection_model(self,index=None):
         if index is None:
-            self.cur_detection_model = YOLO(os.path.join(self.detection_model_path, "yolo11n" + str(self.best_detection_index) + ".pt"))
+            #self.cur_detection_model = YOLO(os.path.join(self.detection_model_path, "yolo11n" + str(self.best_detection_index) + ".pt"))
+            self.cur_detection_model = YOLO(os.path.join(self.model_root, "yolo11n-model.pt"))
+            self.cur_detection_model.load(torch.load(os.path.join(self.detection_model_path, "yolo11n" + str(self.best_detection_index) + ".pt")))
             print("Loaded a saved detection model. Index: " + str(self.best_detection_index))
         else:
             self.cur_detection_model = YOLO(os.path.join(self.detection_model_path, "yolo11n" + str(index) + ".pt"))
@@ -85,12 +88,12 @@ class ModelLoadingStation:
             print(e)
 
 
-    #customize this method on the fly
-    def load_trained_detection_model(self):
-        self.cur_detection_model = YOLO(os.path.join(self.detection_model_path, "yolo11n.pt"))
-        self.cur_detection_model.load_state_dict(torch.load(os.path.join(self.project_root, "runs/detect/best100/weights/best.pt")))
-        self.cur_detection_model.to(self.device)
-        print("Loaded a trained detection model.")
+    # #customize this method on the fly
+    # def load_trained_detection_model(self):
+    #     self.cur_detection_model = YOLO(os.path.join(self.detection_model_path, "yolo11n.pt"))
+    #     self.cur_detection_model.load_state_dict(torch.load(os.path.join(self.project_root, "runs/detect/best100/weights/best.pt")))
+    #     self.cur_detection_model.to(self.device)
+    #     print("Loaded a trained detection model.")
 
 
 
@@ -99,10 +102,12 @@ class ModelLoadingStation:
     #Loads a saved classification model from the model directory based on index. If no index is given - this loads the model with the highest index (newest one).
     #The model itself exists in models/vit-model.pt
     #This will load the model and then look for best weights stored in models/classification/vit#.pt
-    def load_saved_classification_model(self,index=None):
+    def load_saved_classification_model(self,index=None, num_classes = 88):
         if index is None:
             # self.cur_classification_model = torch.load(os.path.join(self.classification_model_path, "vit" + str(self.best_classification_index) + ".pt"))
             self.cur_classification_model = torch.load(os.path.join(self.model_root, "vit-model.pt"), weights_only=False)
+            in_features = self.cur_classification_model.head.in_features
+            self.cur_classification_model.head = nn.Linear(in_features, num_classes)
             self.cur_classification_model.load_state_dict(torch.load(os.path.join(self.classification_model_path, "vit" + str(self.best_classification_index) + ".pt")))
             self.cur_classification_model.to(self.device)
             print("Loaded a saved classification model. Index: " + str(self.best_classification_index))
