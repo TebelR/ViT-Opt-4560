@@ -4,7 +4,6 @@ from TrainingStation import TrainingStation
 from ModelLoadingStation import ModelLoadingStation
 from InferenceStation import InferenceStation
 
-
 def main():
     # print("Starting pipeline")
     # print("Loading data")
@@ -21,6 +20,7 @@ def main():
     print("Starting inference pipeline")
     print("looking for input image")
     dls = DataLoadingStation()
+    dls.load_data_classification(0.9, 0.1001)# this is needed just to get the indexed classes
     image = dls.load_inference_image("testInput.jpg")
     mls = ModelLoadingStation()
     mls.load_saved_classification_model()
@@ -28,9 +28,9 @@ def main():
 
     print("Running inference")
     inferS = InferenceStation()
-    print(inferS.inferOnClassification(image, mls.cur_classification_model))
-    print(inferS.inferOnDetection("testInput.jpg", mls.cur_detection_model))
-    inferS.inferOnCombined(image, mls.cur_detection_model, mls.cur_classification_model)
+    #print(inferS.inferOnClassification(image, mls.cur_classification_model, dls))
+    #inferS.inferOnDetection("testInput.jpg", mls.cur_detection_model)
+    inferS.inferOnCombined("testInput.jpg", mls.cur_detection_model, mls.cur_classification_model, dls, "testOutput.jpg")
 
 
 if __name__ == "__main__":

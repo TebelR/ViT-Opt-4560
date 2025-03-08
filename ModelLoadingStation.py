@@ -52,12 +52,13 @@ class ModelLoadingStation:
     def load_saved_detection_model(self,index=None):
         if index is None:
             #self.cur_detection_model = YOLO(os.path.join(self.detection_model_path, "yolo11n" + str(self.best_detection_index) + ".pt"))
-            self.cur_detection_model = YOLO(os.path.join(self.model_root, "yolo11n-model.pt"))
-            self.cur_detection_model.load(torch.load(os.path.join(self.detection_model_path, "yolo11n" + str(self.best_detection_index) + ".pt")))
+            #self.cur_detection_model = YOLO(os.path.join(self.model_root, "yolo11n-model.pt"))
+            #self.cur_detection_model.load(torch.load(os.path.join(self.detection_model_path, "yolo11n" + str(self.best_detection_index) + ".pt")))
+            self.cur_detection_model = YOLO(os.path.join(self.detection_model_path, "yolo11n" + str(self.best_detection_index) + ".pt"))
             print("Loaded a saved detection model. Index: " + str(self.best_detection_index))
         else:
             self.cur_detection_model = YOLO(os.path.join(self.detection_model_path, "yolo11n" + str(index) + ".pt"))
-        print("Loaded a saved detection model. Index: " + str(index))
+            print("Loaded a saved detection model. Index: " + str(index))
 
     #Saves the current detection model and overwirtes the specified index with it.
     def overwrite_saved_detection_model(self,index):
