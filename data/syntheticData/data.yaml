@@ -1,7 +1,5 @@
 path: ../syntheticData
-train: images/train
-val: images/valid
-test: images/test
+val: images/test
 
 names:
   0: Achnatherum_inebrians

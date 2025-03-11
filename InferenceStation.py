@@ -2,6 +2,7 @@ import torch
 import os
 import json
 from torchvision import transforms as T
+from ultralytics import YOLO
 from DataLoadingStation import DataLoadingStation
 from torchvision import io
 import cv2
@@ -78,7 +79,7 @@ class InferenceStation():
             imageCV2 = cv2.resize(imageCV2, (1000, 1000))
             rescaleFactorX = imageWidth / 1000
             rescaleFactorY = imageHeight / 1000
-            print("Rescale factors: " + str(rescaleFactorX) + " " + str(rescaleFactorY))
+            #print("Rescale factors: " + str(rescaleFactorX) + " " + str(rescaleFactorY))
 
         with torch.no_grad():
             #first, create bounding boxes from the image
@@ -98,18 +99,20 @@ class InferenceStation():
                         "right" : xyxyn[i][2].item(),
                         "confidence": confs[i]
                     }
-                    detectedSeeds.append(seedCrop)
+                    if(xyxyn[i][3].item() - xyxyn[i][1].item() > 0.05 and xyxyn[i][2].item() - xyxyn[i][0].item() > 0.05):
+                        print("appended a seed crop: " + str(seedCrop))
+                        detectedSeeds.append(seedCrop)
                 
+                image = io.decode_image(image_path,  mode="RGB")
                 #now, crop out another image from the original image and classify it - this is done for every detected seed
                 for i in range(len(detectedSeeds)):
                     seedCrop = detectedSeeds[i]
                     #load the original image
-                    image = io.decode_image(image_path,  mode="RGB")
                     #crop the image to the seed
-                    x = float(seedCrop["left"]) * image.shape[1]
-                    y = float(seedCrop["top"]) * image.shape[2]
-                    w = float(seedCrop["right"]) * image.shape[1] - x
-                    h = float(seedCrop["bottom"]) * image.shape[2] - y
+                    x = float(seedCrop["left"]) * image.shape[2]
+                    y = float(seedCrop["top"]) * image.shape[1]
+                    w = float(seedCrop["right"]) * image.shape[2] - x
+                    h = float(seedCrop["bottom"]) * image.shape[1] - y
                     seed = image[:, int(y):int(y+h), int(x):int(x+w)]
                     #classify the seed
                     preds = self.inferOnClassification(seed, modelClass, dls)
@@ -120,6 +123,20 @@ class InferenceStation():
                         cv2.putText(imageCV2, f"{preds[j][0]}: {preds[j][1]:.02f}", (round(x/rescaleFactorX), round((y+h)/rescaleFactorY) + (j+1) * 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
                 cv2.imwrite(outputPath, imageCV2)
+
+
+
+    #Infer on all the synthetic data that exists in the data path and evaluate the results
+    def inferOnSynthetic(self, data_path, modelDetect:YOLO, modelClass, dls:DataLoadingStation, outputPath):
+        modelDetect.to(self.device)
+        modelClass.to(self.device)
+        modelDetect.eval()
+        modelClass.eval()
+        modelDetect.val(data = data_path, save_json = True)#this does a lot of nice validation for the YOLO model only, but is not flexible enough for the ViT.
+
+        #once the YOLO has been validated, manually infer on synthetic data to test the ViT model
+        #with torch.no_grad():
+        
                 
 
                     

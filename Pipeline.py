@@ -30,7 +30,8 @@ def main():
     inferS = InferenceStation()
     #print(inferS.inferOnClassification(image, mls.cur_classification_model, dls))
     #inferS.inferOnDetection("testInput.jpg", mls.cur_detection_model)
-    inferS.inferOnCombined("testInput.jpg", mls.cur_detection_model, mls.cur_classification_model, dls, "testOutput.jpg")
+    inferS.inferOnCombined("data/syntheticData/images/test/image5901588_0.jpg", mls.cur_detection_model, mls.cur_classification_model, dls, "testSyntheticOne.jpg")
+    #inferS.inferOnSynthetic("data/syntheticData/data.yaml",mls.cur_detection_model, mls.cur_classification_model, dls, "testOutputSynthetic.jpg")
 
 
 if __name__ == "__main__":
