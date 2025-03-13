@@ -33,29 +33,34 @@ class QuantStation():
 
     def dynamic_quant_class(self, model = None, dtype = torch.qint8):
         if model == None:
-            subject = copy.deepcopy(model)
-        else:
-            subject = model
-        subject.to("cpu")
-        subject.eval()
+            print("No model passed into the dynamic quant function, deep copies of the ViT are not supported")
+            return
+        model.to("cpu")
+        model.eval()
         
-        quant_model = torch.quantization.quantize_dynamic(subject, {nn.Linear}, dtype=dtype)
+        quant_model = torch.quantization.quantize_dynamic(model, {nn.Linear}, dtype=dtype)
+        #self.convert_class_biases(quant_model, dtype)
         return quant_model
     
     def static_quant_class(self, model = None, q_level = torch.qint8):
         if model == None:
-            subject = copy.deepcopy(model)
-        else:
-            subject = model
-        subject.to("cpu")
-        subject.eval()
+            print("No model passed into the static quant function, deep copies of the ViT are not supported")
+            return
+        model.to("cpu")
+        model.eval()
         #This mimics the fbgemm config but applies the specified dtype for quantization (q_level)
-        config = torch.quantization.QConfig(
-            activation=torch.quantization.MinMaxObserver.with_args(reduce_range = True, dtype=q_level),
-            weight=torch.quantization.PerChannelMinMaxObserver.with_args(dtype=q_level, qscheme=torch.per_channel_symmetric)
-        )
-        subject.qconfig = config
-        subject = torch.quantization.prepare(subject)
+        # config = torch.quantization.QConfig(
+        #     activation=torch.quantization.MinMaxObserver.with_args(reduce_range = True, dtype=q_level),
+        #     weight=torch.quantization.PerChannelMinMaxObserver.with_args(dtype=q_level, qscheme=torch.per_channel_symmetric)
+        # )
+        config = torch.quantization.get_default_qconfig('x86')
+        model.qconfig = config
+        model.features[0][0].qconfig = None
+        for module in model.modules():
+            if isinstance(module, nn.LayerNorm) or isinstance(module, nn.Linear):
+                module.qconfig = None
+        print("Ommited layers: " + str(model.features[0][0]))
+        model = torch.quantization.prepare(model)
 
         #Now that a bunch of observes have been attached to the model, it needs to be calibrated by feeding it some pictures
         #pick 100 random images from the validation set
@@ -67,14 +72,29 @@ class QuantStation():
             images.append(image)
             labels.append(label)
 
-        images = torch.stack(images).to(self.dev)
-        labels = torch.tensor(labels).to(self.dev)
+        device = ("cpu")#torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        images = torch.stack(images).to(device)
+        labels = torch.tensor(labels).to(device)
+        model.to(device)
         with torch.no_grad(): 
-            outputs = subject(images)
+            outputs = model(images)
             _, preds = torch.max(outputs, 1)  # Get predicted class indices
 
-        subject = torch.quantization.convert(subject)
-        return subject
+        output = torch.quantization.convert(model)
+        return output
+    
+
+    def convert_class_biases(self, model, dtype = torch.float32):
+        if model == None:
+            print("No model passed into the bias conversion function for the classifier, deep copies of the ViT are not supported")
+            return
+        model.to("cpu")
+        model.eval()
+        for name, param in model.named_parameters():
+            if "bias" in name:
+                param.data = param.data.to(dtype)
+        print("Biases converted to {}".format(dtype))
+        return
         
         
 

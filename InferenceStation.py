@@ -50,7 +50,7 @@ class InferenceStation():
     #this will classify a batch of random labeled images from the same dataset this was trained on and will capture:
     #accuracy, precision, recall and f1 score
     # in a tuple (accuracy, precision, recall, f1)
-    def inferOnClassificationAvg(self, model, dls:DataLoadingStation, device, input_dtype = torch.float32):
+    def inferOnClassificationAvg(self, model, dls:DataLoadingStation, device = "cpu", input_dtype = torch.float32):
 
         # images = []
         # labels = []
@@ -70,11 +70,12 @@ class InferenceStation():
 
         total = 0
         model.to(device)
+        model.eval()
         for images, labels in dls.dl_validate_classification:
             #need to convert the images to the correct input dtype if the model was quantized
-            images = images.to(input_dtype)#----------------------------------------------------------------Check that this makes sense
-            images, labels = images.to(self.device), labels.to(self.device)
-            with torch.no_grad():  # Disable gradient computation for validation
+            #images = images.to(input_dtype)#----------------------------------------------------------------Check that this makes sense
+            images, labels = images.to(device), labels.to(device)
+            with torch.no_grad():#, torch.autocast(device_type='cuda', dtype=torch.float16):  # Disable gradient computation for validation
                 outputs = model(images)
                 _, preds = torch.max(outputs, 1)  # Get predicted class indices
                 correct += (preds == labels).sum().item()
