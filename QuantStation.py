@@ -33,9 +33,9 @@ class QuantStation():
 
     def dynamic_quant_class(self, model = None, dtype = torch.qint8):
         if model == None:
-            model = self.orig_class_model
-        
-        subject = copy.deepcopy(model)
+            subject = copy.deepcopy(model)
+        else:
+            subject = model
         subject.to("cpu")
         subject.eval()
         
@@ -44,8 +44,9 @@ class QuantStation():
     
     def static_quant_class(self, model = None, q_level = torch.qint8):
         if model == None:
-            model = self.orig_class_model
-        subject = copy.deepcopy(model)
+            subject = copy.deepcopy(model)
+        else:
+            subject = model
         subject.to("cpu")
         subject.eval()
         #This mimics the fbgemm config but applies the specified dtype for quantization (q_level)
@@ -57,7 +58,7 @@ class QuantStation():
         subject = torch.quantization.prepare(subject)
 
         #Now that a bunch of observes have been attached to the model, it needs to be calibrated by feeding it some pictures
-        #pick 10 random images from the validation set
+        #pick 100 random images from the validation set
         images = []
         labels = []
         for i in range(100):#get 100 random images and their labels
@@ -101,5 +102,10 @@ class Swish(torch.nn.Module):
 # class FusedLinear(nn.Module.LayerNorm):
 #     def forward(self, x, dtype = torch.quint8):
 #         return super().forward(x.float()).to(x.dtype)
+
+
+
+
+#-------------------------------------------------------------------------YOLO methods-------------------------------------------------------------------------
 
     

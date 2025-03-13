@@ -50,35 +50,42 @@ class InferenceStation():
     #this will classify a batch of random labeled images from the same dataset this was trained on and will capture:
     #accuracy, precision, recall and f1 score
     # in a tuple (accuracy, precision, recall, f1)
-    def inferOnClassificationAvg(self, model, dls:DataLoadingStation):
+    def inferOnClassificationAvg(self, model, dls:DataLoadingStation, device, input_dtype = torch.float32):
 
-        images = []
-        labels = []
+        # images = []
+        # labels = []
         precision = 0
         recall = 0
         correct = 0
-        num_tests = len(dls.dl_validate_classification)
-        for i in range(num_tests):
-            random_pick = random.randint(0, len(dls.dl_validate_classification) - 1)
-            image, label = dls.dataset_classification[random_pick]
-            images.append(image)
-            labels.append(label)
+        # num_tests = len(dls.dl_validate_classification)
+        # for i in range(num_tests):
+        #     random_pick = random.randint(0, len(dls.dl_validate_classification) - 1)
+        #     image, label = dls.dataset_classification[random_pick]
+        #     images.append(image)
+        #     labels.append(label)
 
-        images = torch.stack(images).to(self.device)
-        labels = torch.tensor(labels).to(self.device)
-        model.to(self.device)
-        with torch.no_grad():  # Disable gradient computation for validation
+        # images = torch.stack(images).to(device)
+        # labels = torch.tensor(labels).to(device)
+        
+
+        total = 0
+        model.to(device)
+        for images, labels in dls.dl_validate_classification:
+            #need to convert the images to the correct input dtype if the model was quantized
+            images = images.to(input_dtype)#----------------------------------------------------------------Check that this makes sense
             images, labels = images.to(self.device), labels.to(self.device)
-            outputs = model(images)
-            _, preds = torch.max(outputs, 1)  # Get predicted class indices
-            correct += (preds == labels).sum().item()
-            precision += precision_score(labels.cpu().numpy(), preds.cpu().numpy(), average='macro', zero_division=1)
-            recall += recall_score(labels.cpu().numpy(), preds.cpu().numpy(), average='macro', zero_division=1)
+            with torch.no_grad():  # Disable gradient computation for validation
+                outputs = model(images)
+                _, preds = torch.max(outputs, 1)  # Get predicted class indices
+                correct += (preds == labels).sum().item()
+                total += labels.size(0)
+                precision += precision_score(labels.cpu().numpy(), preds.cpu().numpy(), average='macro', zero_division=1)
+                recall += recall_score(labels.cpu().numpy(), preds.cpu().numpy(), average='macro', zero_division=1)
 
-        #print("Correct: " + str(correct))
-        accuracy = correct / num_tests
-        precision = precision / num_tests
-        recall = recall / num_tests
+            #print("Correct: " + str(correct))
+        accuracy = correct / total
+        precision = precision / len(dls.dl_validate_classification)
+        recall = recall / len(dls.dl_validate_classification)
         f1 = 2 * (precision * recall) / (precision + recall)
 
         return (accuracy, precision, recall, f1)

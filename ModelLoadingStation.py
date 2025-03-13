@@ -103,6 +103,14 @@ class ModelLoadingStation:
     #Loads a saved classification model from the model directory based on index. If no index is given - this loads the model with the highest index (newest one).
     #The model itself exists in models/vit-model.pt
     #This will load the model and then look for best weights stored in models/classification/vit#.pt
+
+    def load_retrieve_saved_class_model(self, num_classes = 88):
+        output = torch.load(os.path.join(self.model_root, "vit-model.pt"), weights_only=False)
+        in_features = output.head.in_features
+        output.head = nn.Linear(in_features, num_classes)
+        output.load_state_dict(torch.load(os.path.join(self.classification_model_path, "vit" + str(self.best_classification_index) + ".pt")))
+        return output
+
     def load_saved_classification_model(self,index=None, num_classes = 88):
         if index is None:
             # self.cur_classification_model = torch.load(os.path.join(self.classification_model_path, "vit" + str(self.best_classification_index) + ".pt"))

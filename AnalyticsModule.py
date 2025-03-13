@@ -14,8 +14,8 @@ from InferenceStation import InferenceStation
 #         print("Trial " + str(i) + ": " + str(results[i]))
 
 
-def check_stats_classification(model, dls, inferS: InferenceStation):
-    results = inferS.inferOnClassificationAvg(model, dls)
+def check_stats_classification(model, dls, inferS: InferenceStation, device, input_dtype = torch.float32):
+    results = inferS.inferOnClassificationAvg(model, dls, device, input_dtype)
     print("Stat check: accuracy: {} precision: {} recall: {} f1: {}".format(results[0], results[1], results[2], results[3]))
     
     

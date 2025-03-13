@@ -52,13 +52,13 @@ def main():
     inferS = InferenceStation()
     print("Analyzing performance")
     #t test for classification and detection on n images of their respective datasets
-    check_stats_classification(mls.cur_classification_model, dls, inferS)
+    check_stats_classification(mls.cur_classification_model, dls, inferS, "cuda")
 
     print("Quantizing")
     #quantize for various dtypes
     quantS = QuantStation(dls, inferS)
     quantS.set_class_model(mls.cur_classification_model)
-    quantized_temp = quantS.dynamic_quant_class(dtype = torch.float16)
+    #quantized_temp = quantS.dynamic_quant_class(dtype = torch.float16)
     # print("Quantized for float16 dynamically...")
     # check_stats_classification(quantized_temp, dls, inferS)
     # quantized_temp = quantS.static_quant_class(q_level = torch.float16)
@@ -71,17 +71,17 @@ def main():
     # check_stats_classification(quantized_temp, dls, inferS)
 
     #now quantize for int8
-    quantized_temp = quantS.dynamic_quant_class(dtype = torch.qint8)
+    quantized_temp = quantS.dynamic_quant_class(mls.load_retrieve_saved_class_model(),dtype = torch.qint8)
     print("Quantized for int8 dynamically...")
-    check_stats_classification(quantized_temp, dls, inferS)
-    quantized_temp = quantS.static_quant_class(q_level = torch.qint8)
+    check_stats_classification(quantized_temp, dls, inferS, "cpu", torch.uint8)
+    quantized_temp = quantS.static_quant_class(mls.load_retrieve_saved_class_model(),q_level = torch.qint8)
     print("Quantized for int8 statically...")
-    check_stats_classification(quantized_temp, dls, inferS)
+    check_stats_classification(quantized_temp, dls, inferS, "cuda", torch.uint8)
     #quantize both dynamically and statically for int8
-    quantized_temp = quantS.dynamic_quant_class(dtype = torch.qint8)
-    quantized_temp = quantS.static_quant_class(model = quantized_temp, q_level = torch.qint8)
+    quantized_temp = quantS.dynamic_quant_class(mls.load_retrieve_saved_class_model(),dtype = torch.qint8)
+    quantized_temp = quantS.static_quant_class(mls.load_retrieve_saved_class_model(), q_level = torch.qint8)
     print("Quantized for int8 dynamically and statically...")
-    check_stats_classification(quantized_temp, dls, inferS)
+    check_stats_classification(quantized_temp, dls, inferS, "cpu", torch.uint8)
 
     print("Pipeline complete")
 
