@@ -1,3 +1,4 @@
+import random
 import torch
 import os
 import json
@@ -6,6 +7,7 @@ from ultralytics import YOLO
 from DataLoadingStation import DataLoadingStation
 from torchvision import io
 import cv2
+from sklearn.metrics import precision_score, recall_score
 
 class InferenceStation():
     device = "cpu"
@@ -42,6 +44,46 @@ class InferenceStation():
                 classNamePredictions.append((reverse_classNameIndices[i.item()], p.item()))
             #print("Results of classification: " + str(classNamePredictions))
             return classNamePredictions
+        
+
+    #this is used for the t-test and quantization
+    #this will classify a batch of random labeled images from the same dataset this was trained on and will capture:
+    #accuracy, precision, recall and f1 score
+    # in a tuple (accuracy, precision, recall, f1)
+    def inferOnClassificationAvg(self, model, dls:DataLoadingStation):
+
+        images = []
+        labels = []
+        precision = 0
+        recall = 0
+        correct = 0
+        num_tests = len(dls.dl_validate_classification)
+        for i in range(num_tests):
+            random_pick = random.randint(0, len(dls.dl_validate_classification) - 1)
+            image, label = dls.dataset_classification[random_pick]
+            images.append(image)
+            labels.append(label)
+
+        images = torch.stack(images).to(self.device)
+        labels = torch.tensor(labels).to(self.device)
+        model.to(self.device)
+        with torch.no_grad():  # Disable gradient computation for validation
+            images, labels = images.to(self.device), labels.to(self.device)
+            outputs = model(images)
+            _, preds = torch.max(outputs, 1)  # Get predicted class indices
+            correct += (preds == labels).sum().item()
+            precision += precision_score(labels.cpu().numpy(), preds.cpu().numpy(), average='macro', zero_division=1)
+            recall += recall_score(labels.cpu().numpy(), preds.cpu().numpy(), average='macro', zero_division=1)
+
+        #print("Correct: " + str(correct))
+        accuracy = correct / num_tests
+        precision = precision / num_tests
+        recall = recall / num_tests
+        f1 = 2 * (precision * recall) / (precision + recall)
+
+        return (accuracy, precision, recall, f1)
+
+
             
         
     
