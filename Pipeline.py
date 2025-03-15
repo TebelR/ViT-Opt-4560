@@ -64,9 +64,10 @@ def main():
     print("Quantized for int8 dynamically...")
     check_stats_classification(quantized_temp, dls, inferS, "cpu")
 
-    quantized_temp = quantS.static_quant_class(mls.load_retrieve_saved_class_model())
-    print("Quantized for int8 statically...")
-    check_stats_classification(quantized_temp, dls, inferS, "cpu")
+    # quantized_temp = quantS.static_quant_class(mls.load_retrieve_saved_class_model(), dls)
+    # print("Quantized for int8 statically...")
+    # check_stats_classification(quantized_temp, dls, inferS, "cpu")
+
 
     print("Pipeline complete")
 
