@@ -4,7 +4,8 @@ import torch.nn as nn
 import torch.optim as optim
 import os
 import torch.quantization
-import copy
+from torch.quantization.quantize_fx import prepare_fx, convert_fx
+from torch.ao.quantization import get_default_qconfig_mapping
 from DataLoadingStation import DataLoadingStation
 from InferenceStation import InferenceStation
 
@@ -22,6 +23,9 @@ class QuantStation():
         self.dls = dls
         self.inferS = inferS
         os.makedirs(self.save_dir, exist_ok=True)
+        #print(torch.backends.quantized.engine)# the default is x86
+        #torch.backends.quantized.engine = 'fbgemm'
+        # print(torch.backends.quantized.engine)
 
 
     def set_class_model(self, model):
@@ -40,74 +44,27 @@ class QuantStation():
         
         quant_model = torch.quantization.quantize_dynamic(model, {nn.Linear}, dtype=dtype)
         #self.convert_class_biases(quant_model, dtype)
-        return quant_model
+        return model
     
-    def static_quant_class(self, model = None, q_level = torch.qint8):
+    def static_quant_class(self, model = None):
         if model == None:
             print("No model passed into the static quant function, deep copies of the ViT are not supported")
             return
         model.to("cpu")
         model.eval()
-        #This mimics the fbgemm config but applies the specified dtype for quantization (q_level)
-        # config = torch.quantization.QConfig(
-        #     activation=torch.quantization.MinMaxObserver.with_args(reduce_range = True, dtype=q_level),
-        #     weight=torch.quantization.PerChannelMinMaxObserver.with_args(dtype=q_level, qscheme=torch.per_channel_symmetric)
-        # )
-        config = torch.quantization.get_default_qconfig('x86')
-        model.qconfig = config
-        model.features[0][0].qconfig = None
-        for module in model.modules():
-            if isinstance(module, nn.LayerNorm) or isinstance(module, nn.Linear):
-                module.qconfig = None
-        print("Ommited layers: " + str(model.features[0][0]))
-        model = torch.quantization.prepare(model)
+        config = get_default_qconfig_mapping('x86')# this is the config for the default engine on a pc with a x86 cpu
+        calibration_input = torch.randn(1, 3, 192, 272, dtype=torch.float32)
+        calibration_input = calibration_input.to(memory_format=torch.channels_last)
 
-        #Now that a bunch of observes have been attached to the model, it needs to be calibrated by feeding it some pictures
-        #pick 100 random images from the validation set
-        images = []
-        labels = []
-        for i in range(100):#get 100 random images and their labels
-            random_pick = random.randint(0, len(self.dls.dl_validate_classification) - 1)
-            image, label = self.dls.dataset_classification[random_pick]
-            images.append(image)
-            labels.append(label)
+        prepared_model = prepare_fx(model, config, example_inputs=calibration_input)
 
-        device = ("cpu")#torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        images = torch.stack(images).to(device)
-        labels = torch.tensor(labels).to(device)
-        model.to(device)
-        with torch.no_grad(): 
-            outputs = model(images)
-            _, preds = torch.max(outputs, 1)  # Get predicted class indices
+        #calibration - so that the observers can see the range of values
+        with torch.no_grad():
+            prepared_model(calibration_input)
 
-        output = torch.quantization.convert(model)
-        return output
-    
+        quantized_model = convert_fx(prepared_model)
+        return quantized_model
 
-    def convert_class_biases(self, model, dtype = torch.float32):
-        if model == None:
-            print("No model passed into the bias conversion function for the classifier, deep copies of the ViT are not supported")
-            return
-        model.to("cpu")
-        model.eval()
-        for name, param in model.named_parameters():
-            if "bias" in name:
-                param.data = param.data.to(dtype)
-        print("Biases converted to {}".format(dtype))
-        return
-        
-        
-
-
-
-
-    #This will make a deep copy of the classifier and will substitute some parts of it with quantized versions
-    def prep_class_model(self):
-        # subject = copy.deepcopy(self.orig_class_model)
-        # subject.eval()
-        # for module in subject.modules():
-        pass
-    
 
 
 

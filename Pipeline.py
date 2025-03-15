@@ -59,20 +59,17 @@ def main():
     quantS = QuantStation(dls, inferS)
     quantS.set_class_model(mls.cur_classification_model)
 
-    # quantized_temp = quantS.dynamic_quant_class(mls.load_retrieve_saved_class_model(),dtype = torch.qint8)
-    # print("Quantized for int8 dynamically...")
-    # check_stats_classification(quantized_temp, dls, inferS, "cpu", torch.qint8)
-    # quantized_temp = quantS.static_quant_class(mls.load_retrieve_saved_class_model(),q_level = torch.qint8)
-    # print("Quantized for int8 statically...")
-    # check_stats_classification(quantized_temp, dls, inferS, "cuda", torch.qint8)
     # #quantize both dynamically and statically for int8
     quantized_temp = quantS.dynamic_quant_class(mls.load_retrieve_saved_class_model(),dtype = torch.qint8)
-    quantized_temp = quantS.static_quant_class(mls.load_retrieve_saved_class_model(), q_level = torch.quint8)
-    print("Quantized for int8 dynamically and statically...")
-    check_stats_classification(quantized_temp, dls, inferS, "cpu", torch.qint8)
+    print("Quantized for int8 dynamically...")
+    check_stats_classification(quantized_temp, dls, inferS, "cpu")
+
+    quantized_temp = quantS.static_quant_class(mls.load_retrieve_saved_class_model())
+    print("Quantized for int8 statically...")
+    check_stats_classification(quantized_temp, dls, inferS, "cpu")
 
     print("Pipeline complete")
-    
+
 
     
 
