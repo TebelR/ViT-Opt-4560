@@ -5,6 +5,7 @@ from DataLoadingStation import DataLoadingStation
 from TrainingStation import TrainingStation
 from ModelLoadingStation import ModelLoadingStation
 from InferenceStation import InferenceStation
+from AnalyticsModule import check_stats_classification, print_size_of_model,print_param_types
 from AnalyticsModule import check_stats_classification, check_stats_detection
 from QuantStation import QuantStation
 
@@ -51,6 +52,10 @@ def main():
     # mls.load_saved_classification_model()
     # #mls.load_saved_detection_model()
 
+    inferS = InferenceStation()
+    print("Analyzing performance")
+    #t test for classification and detection on n images of their respective datasets
+    # check_stats_classification(mls.cur_classification_model, dls, inferS, "cpu")
     # inferS = InferenceStation()
     # print("Analyzing performance")
     # #t test for classification and detection on n images of their respective datasets
@@ -65,6 +70,24 @@ def main():
     # quantized_temp = quantS.dynamic_quant_class(mls.load_retrieve_saved_class_model(),dtype = torch.qint8)
     # print("Quantized for int8 dynamically...")
     # check_stats_classification(quantized_temp, dls, inferS, "cpu")
+    print("Quantizing")
+    #quantize for various dtypes
+    quantS = QuantStation(dls, inferS)
+    quantS.set_class_model(mls.cur_classification_model)
+    check_stats_classification(mls.cur_classification_model, dls, inferS, "cpu")
+    print_size_of_model(mls.cur_classification_model)
+    # #quantize both dynamically and statically for int8
+    quantized_temp = quantS.dynamic_quant_class(mls.load_retrieve_saved_class_model(),dtype = torch.qint8)
+    print("Quantized for int8 dynamically...")
+    check_stats_classification(quantized_temp, dls, inferS, "cpu")
+    print_size_of_model(quantized_temp)
+
+    quantized_temp = quantS.static_quant_class(mls.load_retrieve_saved_class_model(), dls)
+    print("Quantized for int8 statically...")
+    check_stats_classification(quantized_temp, dls, inferS, "cpu")
+    print_size_of_model(quantized_temp)
+
+    #print_param_types(quantized_temp)
 
     # # quantized_temp = quantS.static_quant_class(mls.load_retrieve_saved_class_model(), dls)
     # # print("Quantized for int8 statically...")

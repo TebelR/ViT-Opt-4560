@@ -3,14 +3,17 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import os
-import torch.quantization
+import torch.ao.quantization as quant
 from torch.quantization.quantize_fx import prepare_fx, convert_fx
-from torch.ao.quantization import get_default_qconfig_mapping
+from torch.ao.quantization import get_default_qconfig_mapping, prepare, convert, HistogramObserver, MinMaxObserver, QConfig, MovingAverageMinMaxObserver, default_weight_observer
+import torch.fx as fx
+import torch.ao.quantization.qconfig_mapping as qc_mapping
 from DataLoadingStation import DataLoadingStation
 from InferenceStation import InferenceStation
 import torch.ao.quantization.qconfig as qconfig
 from DataLoadingStation import DataLoadingStation
 import torchvision.transforms as T
+from torchvision.models.swin_transformer import SwinTransformerBlockV2
 
 class QuantStation():
 
@@ -125,7 +128,7 @@ class QuantStation():
             "features.7.1.mlp.3": qconfig.default_qconfig,#linear
 
             "norm": None,
-            "avgpool": None,
+            "avgpool": qconfig.default_qconfig, #avg pool can be quantized
             "flatten": None,
             "head": qconfig.default_qconfig,# this is a linear too
         }
@@ -133,37 +136,44 @@ class QuantStation():
         quant_model = torch.quantization.quantize_dynamic(model, config_dict, dtype=dtype)
         return quant_model
     
+
+
+    def setup_static_classification_qconfig(self, model):
+        activation_observer = HistogramObserver.with_args(dtype=torch.qint8, qscheme=torch.per_tensor_symmetric, bins=256)
+        weight_observer = MinMaxObserver.with_args(dtype=torch.qint8, qscheme=torch.per_tensor_symmetric, quant_min=-1.0, quant_max=1.0)
+
+        linear_custom_qconfig = QConfig(activation = activation_observer, weight = weight_observer)
+
+
+        #self.qconfig_application_rec(model, linear_custom_qconfig)
+        model.qconfig = qconfig.default_qconfig
+        print(model.qconfig)
+        
+
+    def qconfig_application_rec(self, model, linear_custom_qconfig):
+        for name, module in model.named_children():
+            
+            if isinstance(module, torch.nn.Conv2d):
+                # module.qconfig = QConfig(
+                # activation=MovingAverageMinMaxObserver.with_args(dtype = torch.qint8,qscheme=torch.per_tensor_affine),#if this throws an error, try per_tensor_symmetric
+                # weight=default_weight_observer
+                # )
+                module.qconfig = None
+            elif isinstance(module, torch.nn.Linear):
+                module.qconfig = qconfig.get_default_qconfig("onednn")#linear_custom_qconfig
+            else:
+                module.qconfig = None #do not touch anything else
+            self.qconfig_application_rec(module, linear_custom_qconfig)#apply this recursively to submodules
+            
+        
+
+    
     def static_quant_class(self, model = None, dls : DataLoadingStation = None):
         if model == None:
             print("No model passed into the static quant function, deep copies of the ViT are not supported")
             return
         model.to("cpu")#move the model to the cpu as it may misbehave on the gpu
         model.eval()
-        torch.backends.quantized.engine = 'x86'
-        config = get_default_qconfig_mapping('x86')# the default qconfig for pc is x86
-
-        #config.set_global(qconfig.float16_static_qconfig)#This will make it so that things quantize to float16
-
-        # config.set_object_type(torch.nn.Conv2d, qconfig.default_qconfig)
-        # config.set_object_type(torch.nn.Linear, qconfig.float_qparams_weight_only_qconfig)#quantization with Pytorch's FX fuses linear layers and their activations
-        # config.set_object_type(torch.nn.modules.activation.ReLU, qconfig.float_qparams_weight_only_qconfig)#ReLU needs to be quantized the same way as its linear layer
-        # config.set_object_type(torch.nn.modules.activation.GELU, None)#omit the GELU - might be able to replace this with a swish later
-        # config.set_object_type(torch.nn.LayerNorm, None)#omit the layer norm as this breaks the ViT
-        # config.set_object_type(torch.nn.Softmax, None)
-
-        config.set_module_name("features[0]", None)
-        config.set_module_name("features[1]", None)
-        config.set_module_name("features[2]", None)
-        config.set_module_name("features[3]", None)
-        config.set_module_name("features[4]", None)
-        config.set_module_name("features[5]", None)
-        config.set_module_name("features[6]", None)
-        config.set_module_name("features[7]", None)
-
-        config.set_module_name("norm", None)
-        config.set_module_name("avgpool", None)
-        config.set_module_name("flatten", None)
-        config.set_module_name("head", None)
 
         num_calibration_imgs = 100
         transform = T.Compose([
@@ -178,22 +188,66 @@ class QuantStation():
         
         images = torch.stack(images).to("cpu")
 
-        prepared_model = prepare_fx(model, config, example_inputs=images)
+        #define a custom qconfig for linear modules
+        linear_custom_qconfig = QConfig(
+            activation = HistogramObserver.with_args(dtype=torch.quint8, qscheme=torch.per_tensor_affine, bins=96, reduce_range = True),
+            weight = MinMaxObserver.with_args(dtype=torch.qint8, qscheme=torch.per_tensor_symmetric)
+        )
+        
+        #also a custom qconfig for Conv2D modules
+        conv2d_custom_qconfig = QConfig(
+            activation = HistogramObserver.with_args(dtype=torch.quint8, qscheme=torch.per_tensor_affine, bins=64, reduce_range = True),
+            weight = MinMaxObserver.with_args(dtype=torch.qint8, qscheme=torch.per_tensor_symmetric)
+        )
 
+        custom_qconfig_mapping = qc_mapping.QConfigMapping()
+        custom_qconfig_mapping.set_global(None)#ignore everything except for certain modules defined below
+
+        for name, module in model.features.named_modules():#fuse the linear and ReLU for better performance
+            if isinstance(module, SwinTransformerBlockV2):
+                quant.fuse_modules(module, ["attn.cpb_mlp.0", "attn.cpb_mlp.1"], inplace=True)
+
+        for name, module in model.named_modules():#then apply custom qconfigs to selected modules - this is in a separate loop because otherwise there's a recursion overflow
+            if isinstance(module, torch.nn.Conv2d):
+                custom_qconfig_mapping.set_module_name(name, conv2d_custom_qconfig)
+
+            elif isinstance(module, torch.nn.Linear):# and "qkv" not in name:# and "head" not in name:#DO not touch qkv and head linear layers
+                custom_qconfig_mapping.set_module_name(name, linear_custom_qconfig)
+
+
+        torch.backends.quantized.engine = "fbgemm"
+        prepared_model = prepare_fx(model, custom_qconfig_mapping, example_inputs=images)
+
+        # for name, module in prepared_model.named_modules():
+        #     if getattr(module, "qconfig", None) is not None:
+        #         print(f"{name}: {module.qconfig}")
+
+        # print(prepared_model)
+
+        prepared_model.eval()
         #calibration - so that the observers can see the range of values
         with torch.no_grad():
             prepared_model(images)
+        
 
-        quantized_model = convert_fx(prepared_model)
+        quantized_model = convert_fx(prepared_model, qconfig_mapping=custom_qconfig_mapping)
+
+
+        # for name, module in quantized_model.named_modules():
+        #     print(name, "->", type(module))
+
         return  quantized_model
+
+
+
 
 
 
 #this is a replacement for the GELU function in the Swin ViT
 #This is much better to quantize than GELU
-class Swish(torch.nn.Module):
-    def forward(self,x):
-        return x * torch.sigmoid(x)
+# class Swish(torch.nn.Module):
+#     def forward(self,x):
+#         return x * torch.sigmoid(x)
     
 
 #The ViT contains a layer norm that is not quantizable - need to find a way to replace it with something that is similar in function
