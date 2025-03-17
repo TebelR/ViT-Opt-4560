@@ -20,4 +20,11 @@ def check_stats_classification(model, dls, inferS: InferenceStation, device, inp
     
     print("Stat check: accuracy: {} precision: {} recall: {} f1: {}".format(results[0], results[1], results[2], results[3]))
     
-    
+def check_stats_detection(model, name):
+    inferS = InferenceStation()
+    print("\n" + name)
+    metricsInfo = inferS.inferQuantizedDetection(model)
+    # print("Stat check: f1: {} mAP50: {} mAP50-95: {} Recall: {} Latency (ms): {} FPS: {} Model Size (MB): {} Total Time (s): {}".format(metricsInfo[1], metricsInfo[2], metricsInfo[3], metricsInfo[4], metricsInfo[5], metricsInfo[6], metricsInfo[7], metricsInfo[8]))
+    print("\n---------Evaluation Results---------")
+    for key, value in metricsInfo.items():
+        print(f"{key}: {value}")

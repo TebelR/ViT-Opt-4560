@@ -2,6 +2,7 @@ import random
 import torch
 import os
 import json
+import time
 from torchvision import transforms as T
 from ultralytics import YOLO
 from DataLoadingStation import DataLoadingStation
@@ -187,7 +188,28 @@ class InferenceStation():
         #once the YOLO has been validated, manually infer on synthetic data to test the ViT model
         #with torch.no_grad():
         
-                
+    def inferQuantizedDetection(self, model_path, data_path="data/detection/data.yaml"):
+        model = YOLO(model_path)
 
+        # Measure latency and accuracy
+        start_time = time.time()
+        metrics = model.val(data=data_path)
+        end_time = time.time()
+
+        # Compute additional metrics
+        latency = metrics.speed['inference']  # ms per image
+        fps = round(1000 / latency, 2)  # Frames per second
+        model_size = round(os.path.getsize(model_path) / (1024 * 1024), 2)  # MB
+
+        return {
+            "F1 Score": metrics.box.f1,
+            "mAP50": metrics.box.map50,
+            "mAP50-95": metrics.box.map,
+            "Recall": metrics.box.mr,
+            "Latency (ms)": latency,
+            "FPS": fps,
+            "Model Size (MB)": model_size,
+            "Total Time (s)": round(end_time - start_time, 2),
+        }
                     
         
