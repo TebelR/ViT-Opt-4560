@@ -8,9 +8,11 @@ from DataLoadingStation import DataLoadingStation
 from torchvision import io
 import cv2
 from sklearn.metrics import precision_score, recall_score
+from timeit import default_timer as timer 
 
 class InferenceStation():
     device = "cpu"
+    record_mem_use = False
     def __init__(self):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -25,19 +27,21 @@ class InferenceStation():
             T.Resize((192, 272)),
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
-        #print("Infering on classification")
-        #print("Image shape: " + str(image.shape))
+
         with torch.no_grad():
-            #print("Image shape prior to crop: " + str(image.shape))
             imgTemp = transform(image.to(torch.float32)/255.0).unsqueeze(0)
             imgTemp = imgTemp.to(self.device)
+            if self.record_mem_use: 
+                print(f"Before inference on ViT on a seed: {torch.cuda.memory_allocated() / 1024**2:.2f} MB")
             output = model(imgTemp)
+            if self.record_mem_use: 
+                print(f"After inference on ViT on a seed: {torch.cuda.memory_allocated() / 1024**2:.2f} MB")
+                self.record_mem_use = False
             #map the existing classes to the output to see which class names are predicted
             classNameIndices = dls.dataset_classification.indexed_classes
             classNamePredictions = []
             output = torch.nn.functional.softmax(output, dim=1).cpu()
             top5 = (output.topk(5, dim=1).indices[0], output.topk(5, dim=1).values[0])
-            #print("Top 5 classes: " + str(top5))
 
             for i, p in zip(top5[0], top5[1]):
                 reverse_classNameIndices = {v: k for k, v in classNameIndices.items()}
@@ -73,7 +77,6 @@ class InferenceStation():
         model.eval()
         for images, labels in dls.dl_validate_classification:
             #need to convert the images to the correct input dtype if the model was quantized
-            #images = images.to(input_dtype)#----------------------------------------------------------------Check that this makes sense
             images, labels = images.to(device), labels.to(device)
             with torch.no_grad():#, torch.autocast(device_type='cuda', dtype=torch.float16):  # Disable gradient computation for validation
                 outputs = model(images)
@@ -124,7 +127,11 @@ class InferenceStation():
         rescaleFactorY = 1
         imageCV2 = cv2.imread(image_path)
         imageWidth, imageHeight, _ = imageCV2.shape
-
+        print("Image dimensions: " + str(imageWidth) + " " + str(imageHeight))
+        start_time = timer()
+        
+        self.record_mem_use = True#prepare to record memory usage on the ViT for one seed - it's the same for all seeds and does not stack
+        
         if imageWidth < 1000 or imageHeight < 1000:
             imageCV2 = cv2.resize(imageCV2, (1000, 1000))
             rescaleFactorX = imageWidth / 1000
@@ -132,8 +139,14 @@ class InferenceStation():
             #print("Rescale factors: " + str(rescaleFactorX) + " " + str(rescaleFactorY))
 
         with torch.no_grad():
+            if(self.device.type == "cuda"):
+                torch.cuda.synchronize()
+                print(f"Before inference on YOLO: {torch.cuda.memory_allocated() / 1024**2:.2f} MB")
             #first, create bounding boxes from the image
             output = modelDetect(image_path)
+            if(self.device.type == "cuda"):
+                torch.cuda.synchronize()
+                print(f"After inference on YOLO: {torch.cuda.memory_allocated() / 1024**2:.2f} MB")
             #since the input image resolution could've been resized to fit YOLO, normalized coordinates of boxes are used
             detectedSeeds = []
             for result in output:
@@ -149,9 +162,8 @@ class InferenceStation():
                         "right" : xyxyn[i][2].item(),
                         "confidence": confs[i]
                     }
-                    if(xyxyn[i][3].item() - xyxyn[i][1].item() > 0.05 and xyxyn[i][2].item() - xyxyn[i][0].item() > 0.05):
-                        print("appended a seed crop: " + str(seedCrop))
-                        detectedSeeds.append(seedCrop)
+                    #if(xyxyn[i][3].item() - xyxyn[i][1].item() > 0.05 and xyxyn[i][2].item() - xyxyn[i][0].item() > 0.05): #this may occasionally be needed if the YOLO misbehaves
+                    detectedSeeds.append(seedCrop)
                 
                 image = io.decode_image(image_path,  mode="RGB")
                 #now, crop out another image from the original image and classify it - this is done for every detected seed
@@ -165,6 +177,7 @@ class InferenceStation():
                     h = float(seedCrop["bottom"]) * image.shape[1] - y
                     seed = image[:, int(y):int(y+h), int(x):int(x+w)]
                     #classify the seed
+                    
                     preds = self.inferOnClassification(seed, modelClass, dls)
                     #draw the box, confidence and labels for the seed
                     cv2.rectangle(imageCV2, (round(x/rescaleFactorX), round(y/rescaleFactorY)), (round((x+w)/rescaleFactorX), round((y+h)/rescaleFactorY)), (0, 255, 0), 2)
@@ -173,6 +186,10 @@ class InferenceStation():
                         cv2.putText(imageCV2, f"{preds[j][0]}: {preds[j][1]:.02f}", (round(x/rescaleFactorX), round((y+h)/rescaleFactorY) + (j+1) * 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
                 cv2.imwrite(outputPath, imageCV2)
+
+        self.record_mem_use = True
+        end_time = timer()
+        print("Total infrence time: " + str(end_time - start_time))
 
 
 

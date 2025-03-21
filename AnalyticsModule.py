@@ -39,3 +39,4 @@ def print_param_types(model):
         #else:
             #print(f"{name}: {tensor}") #this may cause an explosion
     
+

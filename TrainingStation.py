@@ -14,8 +14,8 @@ class TrainingStation:
     
     num_epochs_detection = 1
     num_epochs_classification = 3
-    batch_size_detection = 2
-    num_workers = 4
+    batch_size_detection = 10
+    num_workers = 12
     
 
     #variables for YOLO training
