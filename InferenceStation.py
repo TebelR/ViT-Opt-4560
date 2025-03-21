@@ -10,6 +10,7 @@ from torchvision import io
 import cv2
 from sklearn.metrics import precision_score, recall_score
 from timeit import default_timer as timer 
+import torchvision.ops as ops
 
 class InferenceStation():
     device = "cpu"
@@ -228,5 +229,102 @@ class InferenceStation():
             "Model Size (MB)": model_size,
             "Total Time (s)": round(end_time - start_time, 2),
         }
-                    
+    
+
+
+#This will use a yaml formatted dataset to evaluate how well the YOLO and the ViT work together on synthetic data
+#For this to work correctly, the yaml labels need to contain true classes of seeds - not just 0 for "seed"
+    def evaluateCombined(self, data_path, modelDetect:YOLO, modelClass, dls:DataLoadingStation):
+        total = 0
+        precision_class = 0
+        recall_class = 0
+        correct_class = 0
+
+        modelDetect.to('cpu')
+        modelClass.to('cpu')
+        modelDetect.eval()
+        modelClass.eval()
+        
+        all_images = os.listdir(os.path.join(data_path, "images", "test"))
+        all_labels = os.listdir(os.path.join(data_path, "labels_class", "test"))
+
+        transform = T.Compose([
+            T.Resize((192, 272)),
+            T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+        
+        for i in range(len(all_images)):
+            image_path = os.path.join(data_path, "images", "test", all_images[i])
+            label_path = os.path.join(data_path, "labels_class", "test", all_labels[i])
+            #image = cv2.imread(image_path)
+            
+            #each element in the list contains [class, x, y, width, height] - x y width height are normalized w respect to totlal image size
+            true_box_classes = torch.tensor([list(map(float, line.split())) for line in open(label_path)], dtype=torch.float32)
+            true_boxes = true_box_classes[:, 1:]
+            true_box_xyxy = box_cxcywh_to_xyxy(true_boxes)
+            #no need to unravel the normalized coordinates - the predictions give normalized x y w h
+            
+            modelDetect.to(self.device)
+            modelClass.to(self.device)
+            with torch.no_grad():
+                output = modelDetect(image_path)
+
+                for result in output:#for every detected object - get iou and then work with the ViT
+                    class_labels_stacked = []
+                    class_images_stacked = []
+                    predictions = result.boxes.xyxyn
+                    predictions = predictions.to('cpu')
+                    true_box_xyxy = true_box_xyxy.to('cpu')
+                    iou_list = ops.box_iou(predictions, true_box_xyxy)
+                    best_match_indices = torch.argmax(iou_list, dim=1)
+                    best_true_match = true_box_classes[best_match_indices, 0]
+
+                    class_image = io.decode_image(image_path,  mode="RGB")
+                    for i in range(len(predictions)):
+                        x = predictions[i][0].item() * class_image.shape[2]
+                        y = predictions[i][1].item() * class_image.shape[1]
+                        w = predictions[i][2].item() * class_image.shape[2] - x
+                        h = predictions[i][3].item() * class_image.shape[1] - y
+                        seed = class_image[:, int(y):int(y+h), int(x):int(x+w)]
+                        
+                        imgTemp = transform(seed.to(torch.float32)/255.0).unsqueeze(0)
+                        class_images_stacked.append(imgTemp)
+                        class_labels_stacked.append(best_true_match[i])
+
+
+                    class_images_stacked = torch.cat(class_images_stacked, dim=0)
+                    class_labels_stacked = torch.stack(class_labels_stacked)
+
+                    class_images_stacked = class_images_stacked.to(self.device)
+                    class_labels_stacked = class_labels_stacked.to(self.device)
+
+                    outputs = modelClass(class_images_stacked)#need to unsqueeze because normally a data loader would do this
+                    _, preds = torch.max(outputs, 1)  # Get predicted class indices
+                    correct_class += (preds == class_labels_stacked).sum().item()
+                    total += class_labels_stacked.size(0)
+                    precision_class += precision_score(class_labels_stacked.cpu().numpy(), preds.cpu().numpy(), average='macro', zero_division=1)
+                    recall_class += recall_score(class_labels_stacked.cpu().numpy(), preds.cpu().numpy(), average='macro', zero_division=1)
+                
+        #final metrics for the ViT
+        accuracy = correct_class / total
+        precision_class = precision_class / len(dls.dl_validate_classification)
+        recall_class = recall_class / len(dls.dl_validate_classification)
+        f1 = 2 * (precision_class * recall_class) / (precision_class + recall_class)
+
+        metrics_yolo = modelDetect.val(data = os.path.join(data_path, "data.yaml"), save_json = False)
+        print("Evaluation complete...")
+        print("Ignore YOLO classification stats.")
+        print(f"YOLO metrics:\n{metrics_yolo.results_dict}\n{metrics_yolo.speed}")
+        print(f"\nViT metrics:\nAccuracy: {accuracy}\nPrecision: {precision_class}\nRecall: {recall_class}\nF1: {f1}")
+
+
+
+
+def box_cxcywh_to_xyxy(x):
+    cx, cy, w, h = x.unbind(-1)
+    x1 = cx - w / 2
+    y1 = cy - h / 2
+    x2 = cx + w / 2
+    y2 = cy + h / 2
+    return torch.stack((x1, y1, x2, y2), dim=-1)       
         

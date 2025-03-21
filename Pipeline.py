@@ -33,7 +33,7 @@ def main():
     #image = dls.load_inference_image("testInput.jpg")
     mls = ModelLoadingStation()
     mls.load_saved_classification_model()
-    mls.load_saved_detection_model(4) #2 is 2500x2500, 3 is 1600x1600, 4 is 1280x1280 and 5 is 960x960
+    mls.load_saved_detection_model(5) #2 is 2500x2500, 3 is 1600x1600, 4 is 1280x1280 and 5 is 960x960
     # print("Starting inference pipeline")
     # print("looking for input image")
     # dls = DataLoadingStation()
@@ -66,7 +66,7 @@ def main():
     # inferS.inferOnDetection("testInput.jpg", mls.cur_detection_model)
     #inferS.inferOnCombined("data/syntheticData/images/test/image5901588_0.jpg", mls.cur_detection_model, mls.cur_classification_model, dls, "testSyntheticOne.jpg")
     # inferS.inferOnSynthetic("data/syntheticData/data.yaml",mls.cur_detection_model, mls.cur_classification_model, dls, "testOutputSynthetic.jpg")
-
+    inferS.evaluateCombined("data/syntheticData", mls.cur_detection_model, mls.cur_classification_model, dls)
 
 
     # print("Loading data")
@@ -140,10 +140,10 @@ def main():
     # logInfo = find_and_move_file("models/detection/", "models/detection/quantization", "yolo11n1.engine", "ModelInt8.engine")
     # print(logInfo)
 
-    print("\nCOMPARING METRICS")
-    check_stats_detection("models/detection/quantization/ModelFp32.engine", "Fp32 Model")
-    check_stats_detection("models/detection/quantization/ModelFp16.engine", "Fp16 Model")
-    check_stats_detection("models/detection/quantization/ModelInt8.engine", "Int8 Model")
+    # print("\nCOMPARING METRICS")
+    # check_stats_detection("models/detection/quantization/ModelFp32.engine", "Fp32 Model")
+    # check_stats_detection("models/detection/quantization/ModelFp16.engine", "Fp16 Model")
+    # check_stats_detection("models/detection/quantization/ModelInt8.engine", "Int8 Model")
 
 
     print("\nPipeline complete")

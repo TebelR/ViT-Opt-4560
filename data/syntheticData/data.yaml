@@ -1,4 +1,6 @@
-path: ../syntheticData
+path: ../data/syntheticData
+test: images/test
+train: images/test
 val: images/test
 
 names:
