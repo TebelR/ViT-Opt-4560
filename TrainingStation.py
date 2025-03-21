@@ -12,7 +12,7 @@ from ClassifierTrainer import ClassifierTrainer
 
 class TrainingStation:
     
-    num_epochs_detection = 1
+    num_epochs_detection = 100
     num_epochs_classification = 3
     batch_size_detection = 10
     num_workers = 12
@@ -60,7 +60,7 @@ class TrainingStation:
             'batch' : self.batch_size_detection,
             'save_dir' : self.detection_results,
             'workers' : self.num_workers,
-            'imgsz' : 2720,#before this was 640
+            'imgsz' : 640,#before this was 2720
             'device' : 'cuda' if torch.cuda.is_available() else 'cpu',
             #'wdir' : self.detection_model_path,
             'save_period' : 0,#do not save checkpoints
