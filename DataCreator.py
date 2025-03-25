@@ -14,7 +14,7 @@ seed_dir = "data/seedOnly"        # Directory containing seed images
 background_dir = "data/backgrounds"    # Directory containing background images
 classes_dir = "data/classification"# this is used to get the class indices
 # Define the output directory where the composite image will be saved.
-output_dir = 'data/syntheticData/'
+output_dir = 'data/syntheticForViT/'
 label_dir = os.path.join(output_dir, 'labels', 'test')
 image_dir = os.path.join(output_dir, 'images', 'test')
 
@@ -28,7 +28,7 @@ max_num_seeds = 100
 
 #num_seeds = int(input("Enter the number of seeds to place in the composite image: ")) #It would be more fun to have a random number of seeds for each image
 
-num_images_to_generate = 50# generates this amount of images with a random number of seeds per image - YAML label txt files are created for every image
+num_images_to_generate = 500# generates this amount of images with a random number of seeds per image - YAML label txt files are created for every image
 
 seed_files = [os.path.join(seed_dir, f) for f in os.listdir(seed_dir)
               if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
@@ -108,6 +108,7 @@ for i in range(num_images_to_generate):
 
         label_file.write(f"{seed_class_index} {seed_x_normalized} {seed_y_normalized} {seed_width_normalized} {seed_height_normalized}\n")
 
+    print("Generated image " + image_name)
         #check that normalized coordinates are accurate
         # top_left = (int((seed_x_normalized-seed_width_normalized/2) * bg_width), int((seed_y_normalized - seed_height_normalized/2)* bg_height))
         # bottom_right = (int((seed_x_normalized+seed_width_normalized/2) * bg_width), int((seed_y_normalized + seed_height_normalized/2)* bg_height))

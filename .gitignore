@@ -170,3 +170,6 @@ results/
 
 #also ignore runs, this is something that YOLO trainer creats
 runs/
+
+#ignore the big datasets
+data/classificationSynthetic
