@@ -39,7 +39,7 @@ class DataLoadingStation:
     VALIDATE_SPLIT_CLASSIFICATION = 0.1001
     TEST_SPLIT_CLASSIFICATION = 0.2
 
-    BATCH_SIZE = 16
+    BATCH_SIZE = 1
     NUM_WORKERS = 0
 
     num_classes = 0

@@ -38,8 +38,8 @@ class ClassifierTrainer:
     start_time = timer()
 
     learning_rate = 0.0001
-    num_epochs = 50
-    num_instances = 2#run through each batch this many tiems
+    num_epochs = 60
+    num_instances = 1#run through each batch this many tiems
     criterion = nn.CrossEntropyLoss()
     optimizer = None
     scheduler = None
@@ -89,45 +89,40 @@ class ClassifierTrainer:
             print(f"Epoch {epoch+1}/{self.num_epochs}")
             start_time = timer()
             avg_loss = 0
+            avg_training_accuracy = 0
             for i in tqdm(range(len(self.train_dl)), desc="Batch progress", unit="batch"):
                 losses = []
-
-                transform = T.Compose([
-                    #T.ToTensor(),
-                    T.RandomAffine(degrees=180, translate=(0.1, 0.1), scale=(0.9, 1.1)),
-                    T.ColorJitter(0.3, 0.3, 0.3, 0.3),
-                    T.RandomErasing(p=0.3),
-                    T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-                ])
-            
+                correct = 0
+                total = 0
 
                 images, labels = next(iter(self.train_dl))
                 self.model.to(self.device)
                 augmented_imgs = []
                 for image in images:
-                    aug_img = transform(image)
+                    aug_img = image #transform(image)
                     augmented_imgs.append(aug_img)
                 augmented_imgs = torch.stack(augmented_imgs)
                 augmented_imgs = augmented_imgs.to(self.device)
                 
                 for i in range(self.num_instances):#run through multiple instances with different augmentations applied to the batch
                     
-                    
-                    
                     labels = labels.to(self.device)
                     self.optimizer.zero_grad()
                     outputs = self.model(augmented_imgs)
-                    loss = self.criterion(outputs, labels)#THIS MAY NOT WORK
+                    loss = self.criterion(outputs, labels)
                     losses.append(loss)
-                    #_, preds = torch.max(outputs, 1)  # Get predicted class indices
 
+                _, preds = torch.max(outputs, 1)
+                correct += (preds == labels).sum().item()
+                total += labels.size(0)
+                avg_training_accuracy += correct / total
                 avg_loss = torch.mean(torch.stack(losses))
-                avg_loss.backward()#This may not work either
+                avg_loss.backward()
                 self.optimizer.step()
 
             self.scheduler.step()#move the learning rate
             # Validation phase
-            self.model.eval()  # Switch to evaluation mode (disables dropout, etc.)
+            self.model.eval()
             correct = 0
             total = 0
             epoch_accuracy = 0
@@ -149,6 +144,7 @@ class ClassifierTrainer:
             precision = precision / len(self.test_dl)
             recall = recall / len(self.test_dl)
             f1 = 2 * (precision * recall) / (precision + recall)
+            avg_training_accuracy = avg_training_accuracy / len(self.train_dl)
 
             writer.add_scalar("Loss", avg_loss, epoch)
             writer.add_scalar("Accuracy", epoch_accuracy, epoch)
@@ -156,7 +152,7 @@ class ClassifierTrainer:
             writer.add_scalar("Recall", recall, epoch)
             writer.add_scalar("F1", f1, epoch)
             writer.add_scalar("Learning Rate", learning_rate[0], epoch)
-
+            writer.add_scalar("Average Training Accuracy", avg_training_accuracy, epoch)
             #track the best model weigths
             if(f1 > best_f1):
                 self.best_f1 = f1
@@ -172,12 +168,13 @@ class ClassifierTrainer:
                 "recall" : recall,
                 "learning_rate" : learning_rate,
                 "f1" : f1,
-                "time" : end_time-start_time
+                "time" : end_time-start_time,
+                "avg_training_accuracy" : avg_training_accuracy
             }
             
             self.training_data.append(epoch_data)
             self.weights["last"] = self.model.state_dict()
-            print(f"Loss: {avg_loss.item():.4f}, Accuracy: {epoch_accuracy:.2f}%, F1: {f1:.3f}, Precision: {precision:.2f}, Recall: {recall:.2f}, Learning Rate: {learning_rate[0]:.10f}, Time: {end_time-start_time:.2f} seconds")
+            print(f"Loss: {avg_loss.item():.4f}, Accuracy: {epoch_accuracy:.2f}%, F1: {f1:.3f}, Precision: {precision:.2f}, Recall: {recall:.2f}, Learning Rate: {learning_rate[0]:.10f}, Avg Training Accuracy: {avg_training_accuracy:.2f}, Time: {end_time-start_time:.2f} seconds")
 
         total_end_time = timer()
         print("Training complete. Saving weigths...")

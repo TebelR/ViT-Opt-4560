@@ -121,7 +121,10 @@ class ModelLoadingStation:
             self.cur_classification_model.to(self.device)
             print("Loaded a saved classification model. Index: " + str(self.best_classification_index))
         else:
-            self.cur_classification_model = torch.load(os.path.join(self.classification_model_path, "vit" + str(index) + ".pt"))
+            self.cur_classification_model = torch.load(os.path.join(self.model_root, "vit-model.pt"), weights_only=False)
+            in_features = self.cur_classification_model.head.in_features
+            self.cur_classification_model.head = nn.Linear(in_features, num_classes)
+            self.cur_classification_model.load_state_dict(torch.load(os.path.join(self.classification_model_path, "vit" + str(index) + ".pt")))
             print("Loaded a saved classification model. Index: " + str(index))
         
 

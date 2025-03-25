@@ -249,8 +249,8 @@ class InferenceStation():
         all_labels = os.listdir(os.path.join(data_path, "labels_class", "test"))
 
         transform = T.Compose([
-            T.Resize((192, 272)),
-            T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            T.Resize((80,80)),
+            T.Normalize(mean=[0.634, 0.562, 0.498], std=[0.204, 0.241, 0.244])
         ])
         
         for i in range(len(all_images)):
