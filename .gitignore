@@ -173,3 +173,5 @@ runs/
 
 #ignore the big datasets
 data/classificationSynthetic
+data/detection
+data/syntheticData

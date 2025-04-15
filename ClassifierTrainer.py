@@ -1,31 +1,26 @@
 import json
-#import random
-# import time
-import numpy as np
 import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
-#from torchvision import datasets, transforms, models
-from torchvision import transforms as T
-# from torchinfo import summary
 from torchvision.models import swin_v2_t
 from timeit import default_timer as timer 
 import os
-from torch.optim.lr_scheduler import StepLR
 from tqdm import tqdm
-import PIL.Image as Image
 from sklearn.metrics import precision_score, recall_score
 from torch.utils.tensorboard import SummaryWriter
 
+
+
+#This was inspired by the trainer class from the ultralytics library that the YOLO model is using. While it does not have nearly the same level of customization, this alone will
+#train the ViT by calling train().  
+#There are a few internal variables that one can configure below.
 class ClassifierTrainer:
 
     num_classes = 0
     test_set = None
     train_set = None
-    # valid_set = None
 
     train_dl = None
-    # valid_dl = None
     test_dl = None
     
     model = None
@@ -80,10 +75,12 @@ class ClassifierTrainer:
 
 
 
+#This will fully train the model as per the specified parameters above. Results will be logged to tensorboard and will be saved to the results/classification directory
+#The best and the last model dictionaries will be saved to the runs/classify directory
     def train(self):
         self.model.train()  # Set model to training mode
         total_start_time = timer()
-        best_f1 = 0# to keep track of the best model weights - F1 is a good metric since some plant species have very few images in the dataset - this prevents dominance
+        best_f1 = 0# to keep track of the best model weights
         writer = SummaryWriter(os.path.join(self.results_save_dir, "tsBoard"))
         for epoch in range(self.num_epochs):
             print(f"Epoch {epoch+1}/{self.num_epochs}")
@@ -186,6 +183,8 @@ class ClassifierTrainer:
 
 
 
+
+#This is a helper function to save the model weights as dictionaries as well as the training data
     def save_training_data(self):
         data = None
         with open(os.path.join(self.project_root, "variables.json")) as f:

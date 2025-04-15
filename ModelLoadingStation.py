@@ -51,9 +51,6 @@ class ModelLoadingStation:
     #Loads a saved detection model from the model directory based on index. If no index is given - this loads the model with the highest index (newest one).
     def load_saved_detection_model(self,index=None):
         if index is None:
-            #self.cur_detection_model = YOLO(os.path.join(self.detection_model_path, "yolo11n" + str(self.best_detection_index) + ".pt"))
-            #self.cur_detection_model = YOLO(os.path.join(self.model_root, "yolo11n-model.pt"))
-            #self.cur_detection_model.load(torch.load(os.path.join(self.detection_model_path, "yolo11n" + str(self.best_detection_index) + ".pt")))
             self.cur_detection_model = YOLO(os.path.join(self.detection_model_path, "yolo11n" + str(self.best_detection_index) + ".pt"))
             print("Loaded a saved detection model. Index: " + str(self.best_detection_index))
         else:
@@ -64,12 +61,10 @@ class ModelLoadingStation:
     def overwrite_saved_detection_model(self,index):
         if os.path.exists(os.path.join(self.detection_model_path, "yolo11n" + str(index) + ".pt")):
             save_path = os.path.join(self.detection_model_path, "yolo11n" + str(index) + ".pt")
-            #torch.save(self.cur_detection_model, save_path)
             self.cur_detection_model.save(save_path)
             print("Overwrote a detection model. Index: " + str(index))
         else:
             save_path = os.path.join(self.detection_model_path, "yolo11n" + str(index) + ".pt")
-            #torch.save(self.cur_detection_model, save_path)
             self.cur_detection_model.save(save_path)
             print("Tried to overwrite a detection model that did not exist. Saving it instead at index: " + str(index))
 
@@ -80,22 +75,12 @@ class ModelLoadingStation:
         try:
             self.best_detection_index += 1
             save_path = os.path.join(self.detection_model_path, "yolo11n" + str(self.best_detection_index) + ".pt")
-            #torch.save(self.cur_detection_model, save_path)
             self.cur_detection_model.save(save_path)
             print("Saved a detection model. Index: " + str(self.best_detection_index))
         except Exception as e:
             self.best_detection_index = old_index
             print("Failed to save detection model. Index: " + str(self.best_detection_index))
             print(e)
-
-
-    # #customize this method on the fly
-    # def load_trained_detection_model(self):
-    #     self.cur_detection_model = YOLO(os.path.join(self.detection_model_path, "yolo11n.pt"))
-    #     self.cur_detection_model.load_state_dict(torch.load(os.path.join(self.project_root, "runs/detect/best100/weights/best.pt")))
-    #     self.cur_detection_model.to(self.device)
-    #     print("Loaded a trained detection model.")
-
 
 
     #Classification section----------------------------------------------------------------------------------------------------------------------------

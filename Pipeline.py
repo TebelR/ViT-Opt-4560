@@ -39,7 +39,10 @@ def main():
     inferS = InferenceStation()
     #print(inferS.inferOnClassification(image, mls.cur_classification_model, dls))
     #inferS.inferOnDetection("testInput.jpg", mls.cur_detection_model)
-    #inferS.inferOnCombined("data/syntheticData/images/test/image5901588_0.jpg", mls.cur_detection_model, mls.cur_classification_model, dls, "testSyntheticOne.jpg")
+    #inferS.inferOnCombined("data/syntheticForTest/images/test/image6065345_0.jpg", mls.cur_detection_model, mls.cur_classification_model, dls, "testForLabels1.jpg")
+    #inferS.inferOnCombined("data/syntheticForTest/images/test/image6065345_1.jpg", mls.cur_detection_model, mls.cur_classification_model, dls, "testForLabels2.jpg")
+    inferS.inferOnCombined("data/syntheticForTest/images/test/image6065345_2.jpg", mls.cur_detection_model, mls.cur_classification_model, dls, "testForLabels3.jpg")
+    #inferS.inferOnCombined("data/syntheticForTest/images/test/image6065345_3.jpg", mls.cur_detection_model, mls.cur_classification_model, dls, "testForLabels4.jpg")
     #inferS.inferOnSynthetic("data/syntheticData/data.yaml",mls.cur_detection_model, mls.cur_classification_model, dls, "testOutputSynthetic.jpg")
 
 
@@ -52,7 +55,7 @@ def main():
     # mls.load_saved_classification_model()
     # #mls.load_saved_detection_model()
 
-    inferS.evaluateCombined("data/syntheticData", mls.cur_detection_model, mls.cur_classification_model, dls)
+    #inferS.evaluateCombined("data/syntheticData", mls.cur_detection_model, mls.cur_classification_model, dls)
 
 
     # print("Loading data")
@@ -63,31 +66,64 @@ def main():
     # mls.load_saved_classification_model()
     # #mls.load_saved_detection_model()
 
-    # inferS = InferenceStation()
-    # print("Analyzing performance")
-    #t test for classification and detection on n images of their respective datasets
-    # check_stats_classification(mls.cur_classification_model, dls, inferS, "cpu")
-    # inferS = InferenceStation()
-    # print("Analyzing performance")
-    # #t test for classification and detection on n images of their respective datasets
-    # check_stats_classification(mls.cur_classification_model, dls, inferS, "cuda")
+
+    #print("Analyzing performance on CPU")
+    #check_stats_classification(mls.cur_classification_model, dls, inferS, "cpu")
+
+    #print("Analyzing performance on CUDA")
+    #check_stats_classification(mls.cur_classification_model, dls, inferS, "cuda")
 
     # print("Quantizing")
-    # #quantize for various dtypes
+    # # #quantize for various dtypes
     # quantS = QuantStation(dls, inferS)
     # quantS.set_class_model(mls.cur_classification_model)
-    # check_stats_classification(mls.cur_classification_model, dls, inferS, "cpu")
-    # print_size_of_model(mls.cur_classification_model)
-    # # #quantize both dynamically and statically for int8
-    # quantized_temp = quantS.dynamic_quant_class(mls.load_retrieve_saved_class_model(),dtype = torch.qint8)
-    # print("Quantized for int8 dynamically...")
-    # check_stats_classification(quantized_temp, dls, inferS, "cpu")
-    # print_size_of_model(quantized_temp)
 
-    # quantized_temp = quantS.static_quant_class(mls.load_retrieve_saved_class_model(), dls)
-    # print("Quantized for int8 statically...")
-    # check_stats_classification(quantized_temp, dls, inferS, "cpu")
+    # print_size_of_model(mls.cur_classification_model)
+
+    # #quantize both dynamically and statically for int8
+    # quantized_temp = quantS.dynamic_quant_class(torch.qint8, mls.load_retrieve_saved_class_model())
     # print_size_of_model(quantized_temp)
+    # check_stats_classification(quantized_temp, dls, inferS, "cpu")
+    
+
+    
+
+    # quantized_int8 = quantS.dynamic_quant_class(torch.qint8,model = mls.load_retrieve_saved_class_model())
+    # print_size_of_model(quantized_int8)
+    # check_stats_classification(quantized_int8, dls, inferS, "cpu")
+    
+    # quantized_int8 = mls.load_retrieve_saved_class_model()
+    # print_size_of_model(quantized_int8)
+    # check_stats_classification(quantized_int8, dls, inferS, "cpu")
+    
+
+    # quantized_f16 = mls.load_retrieve_saved_class_model()
+    # quantS.dynamic_quant_class(torch.float16, quantized_f16)
+    # print_size_of_model(quantized_f16)
+    # check_stats_classification(quantized_f16, dls, inferS, "cuda")
+
+
+    # quantS.static_quant_class(model = quantized_f16, dls = dls,  dtype_incoming = torch.float16)
+    # print_size_of_model(quantized_f16)
+    # check_stats_classification(quantized_f16, dls, inferS, "cuda")
+
+    
+
+
+    #quantized_f16 = quantS.dynamic_quant_class(torch.float16, quantized_f16)
+    
+
+    # quantized_temp = quantS.dynamic_quant_class(torch.float16,mls.load_retrieve_saved_class_model())
+    # print_size_of_model(quantized_temp)
+    # check_stats_classification(quantized_temp, dls, inferS, "cpu")
+    #print_size_of_model(quantized_temp)
+
+    #quantized_temp = quantS.static_quant_class(mls.load_retrieve_saved_class_model(), dls)
+    #quantized_temp = quantS.static_graph_quant_class(mls.load_retrieve_saved_class_model(), dls) - this results in near 0 accuracy
+    #print("Quantized for int8 statically...")
+    #check_stats_classification(quantized_temp, dls, inferS, "cpu")
+    
+    #print_size_of_model(quantized_temp)
 
     #print_param_types(quantized_temp)
 

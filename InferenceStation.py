@@ -1,7 +1,5 @@
-import random
 import torch
 import os
-import json
 import time
 from torchvision import transforms as T
 from ultralytics import YOLO
@@ -11,7 +9,6 @@ import cv2
 from sklearn.metrics import precision_score, recall_score
 from timeit import default_timer as timer 
 import torchvision.ops as ops
-
 class InferenceStation():
     device = "cpu"
     record_mem_use = False
@@ -21,15 +18,14 @@ class InferenceStation():
 
     
 
-    #Classification will output top 5 classes
+    #Performs inference on a single seed will output top 3 classes
     def inferOnClassification(self, image, model, dls:DataLoadingStation):
         model.to(self.device)
         model.eval()
         transform = T.Compose([
-            T.Resize((192, 272)),
-            T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            T.Resize((80,80)),
+            T.Normalize(mean=[0.634, 0.562, 0.498], std=[0.204, 0.241, 0.244])
         ])
-
         with torch.no_grad():
             imgTemp = transform(image.to(torch.float32)/255.0).unsqueeze(0)
             imgTemp = imgTemp.to(self.device)
@@ -43,44 +39,28 @@ class InferenceStation():
             classNameIndices = dls.dataset_classification.indexed_classes
             classNamePredictions = []
             output = torch.nn.functional.softmax(output, dim=1).cpu()
-            top5 = (output.topk(5, dim=1).indices[0], output.topk(5, dim=1).values[0])
+            top3 = (output.topk(3, dim=1).indices[0], output.topk(3, dim=1).values[0])
 
-            for i, p in zip(top5[0], top5[1]):
-                reverse_classNameIndices = {v: k for k, v in classNameIndices.items()}
-                classNamePredictions.append((reverse_classNameIndices[i.item()], p.item()))
-            #print("Results of classification: " + str(classNamePredictions))
+            # for i, p in zip(top3[0], top3[1]):
+            #     reverse_classNameIndices = {v: k for k, v in classNameIndices.items()}
             return classNamePredictions
         
 
-    #this is used for the t-test and quantization
-    #this will classify a batch of random labeled images from the same dataset this was trained on and will capture:
+    #Classifies a batch of random labeled images from the validation set of the classification dataset and will capture:
     #accuracy, precision, recall and f1 score
     # in a tuple (accuracy, precision, recall, f1)
     def inferOnClassificationAvg(self, model, dls:DataLoadingStation, device = "cpu", input_dtype = torch.float32):
-
-        # images = []
-        # labels = []
         precision = 0
         recall = 0
-        correct = 0
-        # num_tests = len(dls.dl_validate_classification)
-        # for i in range(num_tests):
-        #     random_pick = random.randint(0, len(dls.dl_validate_classification) - 1)
-        #     image, label = dls.dataset_classification[random_pick]
-        #     images.append(image)
-        #     labels.append(label)
-
-        # images = torch.stack(images).to(device)
-        # labels = torch.tensor(labels).to(device)
-        
+        correct = 0        
 
         total = 0
         model.to(device)
         model.eval()
         for images, labels in dls.dl_validate_classification:
-            #need to convert the images to the correct input dtype if the model was quantized
             images, labels = images.to(device), labels.to(device)
-            with torch.no_grad():#, torch.autocast(device_type='cuda', dtype=torch.float16):  # Disable gradient computation for validation
+           
+            with torch.no_grad():
                 outputs = model(images)
                 _, preds = torch.max(outputs, 1)  # Get predicted class indices
                 correct += (preds == labels).sum().item()
@@ -88,38 +68,39 @@ class InferenceStation():
                 precision += precision_score(labels.cpu().numpy(), preds.cpu().numpy(), average='macro', zero_division=1)
                 recall += recall_score(labels.cpu().numpy(), preds.cpu().numpy(), average='macro', zero_division=1)
 
-            #print("Correct: " + str(correct))
         accuracy = correct / total
         precision = precision / len(dls.dl_validate_classification)
         recall = recall / len(dls.dl_validate_classification)
-        f1 = 2 * (precision * recall) / (precision + recall)
+        if(precision != 0 and recall != 0):
+            f1 = 2 * (precision * recall) / (precision + recall)
+        else:
+            f1 = 0
+            print("avoiding F1 division by 0")
 
         return (accuracy, precision, recall, f1)
 
 
             
         
-    
+    #Uses the YOLO to test coodinates of detected seeds. This does not draw anything on the image and should be used for debugging only
     def inferOnDetection(self, image_path, model):
         model.to(self.device)
         model.eval()
         print("Infering on detection")
         with torch.no_grad():
-            #image = transform(image).unsqueeze(0).to(self.device)
             output = model(image_path, show=True)
             for result in output:
                 xywh = result.boxes.xywh  # center-x, center-y, width, height
                 xywhn = result.boxes.xywhn  # normalized
-                #xyxy = result.boxes.xyxy  # top-left-x, top-left-y, bottom-right-x, bottom-right-y
                 xyxyn = result.boxes.xyxyn  # normalized
-                #names = [result.names[cls.item()] for cls in result.boxes.cls.int()]  # class name of each box
-                confs = result.boxes.conf  # confidence score of each box
-                #print("Results of detection: \n" + str(xyxy) + "\n" + str(names) + "\n" + str(confs))
+                # confs = result.boxes.conf  # confidence score of each box
                 print("\n Normalized: \n" + str(xyxyn))
                 print("\n Centers: \n" + str(xywh))
                 print("\n Normalized Centers: \n" + str(xywhn))
         
 
+
+    #This will classify all seeds in an image located at image_path. Boxes and top 3 classes will be drawn for every seed in the image. The new image will be saved in outputPath
     def inferOnCombined(self, image_path, modelDetect, modelClass, dls:DataLoadingStation, outputPath):
         modelDetect.to(self.device)
         modelClass.to(self.device)
@@ -134,27 +115,24 @@ class InferenceStation():
         
         self.record_mem_use = True#prepare to record memory usage on the ViT for one seed - it's the same for all seeds and does not stack
         
-        if imageWidth < 1000 or imageHeight < 1000:
-            imageCV2 = cv2.resize(imageCV2, (1000, 1000))
+        if imageWidth < 1000 or imageHeight < 1000:#This needs reconfiguration to work with small and very large images
+            imageCV2 = cv2.resize(imageCV2, (1000, 1000), interpolation =  cv2.INTER_AREA)
             rescaleFactorX = imageWidth / 1000
             rescaleFactorY = imageHeight / 1000
-            #print("Rescale factors: " + str(rescaleFactorX) + " " + str(rescaleFactorY))
 
         with torch.no_grad():
             if(self.device.type == "cuda"):
                 torch.cuda.synchronize()
                 print(f"Before inference on YOLO: {torch.cuda.memory_allocated() / 1024**2:.2f} MB")
             #first, create bounding boxes from the image
-            output = modelDetect(image_path)
+            output = modelDetect(imageCV2) #img_path
             if(self.device.type == "cuda"):
                 torch.cuda.synchronize()
                 print(f"After inference on YOLO: {torch.cuda.memory_allocated() / 1024**2:.2f} MB")
             #since the input image resolution could've been resized to fit YOLO, normalized coordinates of boxes are used
             detectedSeeds = []
             for result in output:
-                #xywhn = result.boxes.xywhn  # normalized center-x, center-y, width, height
                 xyxyn = result.boxes.xyxyn  # normalized top-left-x, top-left-y, bottom-right-x, bottom-right-y
-                #names = [result.names[cls.item()] for cls in result.boxes.cls.int()]  # class name of each box
                 confs = result.boxes.conf  # confidence score of each box
                 for i in range(len(xyxyn)):
                     seedCrop = {
@@ -164,7 +142,6 @@ class InferenceStation():
                         "right" : xyxyn[i][2].item(),
                         "confidence": confs[i]
                     }
-                    #if(xyxyn[i][3].item() - xyxyn[i][1].item() > 0.05 and xyxyn[i][2].item() - xyxyn[i][0].item() > 0.05): #this may occasionally be needed if the YOLO misbehaves
                     detectedSeeds.append(seedCrop)
                 
                 image = io.decode_image(image_path,  mode="RGB")
@@ -195,28 +172,19 @@ class InferenceStation():
 
 
 
-    #Infer on all the synthetic data that exists in the data path and evaluate the results
-    def inferOnSynthetic(self, data_path, modelDetect:YOLO, modelClass, dls:DataLoadingStation, outputPath):
-        modelDetect.to(self.device)
-        modelClass.to(self.device)
-        modelDetect.eval()
-        modelClass.eval()
-        modelDetect.val(data = data_path, save_json = True)#this does a lot of nice validation for the YOLO model only, but is not flexible enough for the ViT.
 
-        #once the YOLO has been validated, manually infer on synthetic data to test the ViT model
-        #with torch.no_grad():
-        
-    def inferQuantizedDetection(self, model_path, data_path="data/detection/data.yaml"):
+    #Looks at the stats of the quantized YOLO model
+    def inferQuantizedDetection(self, model_path, data_path="data/syntheticData/data.yaml"):
         model = YOLO(model_path)
 
-        # Measure latency and accuracy
+        # measure latency and accuracy
         start_time = time.time()
         metrics = model.val(data=data_path)
         end_time = time.time()
 
-        # Compute additional metrics
+        # compute additional metrics
         latency = metrics.speed['inference']  # ms per image
-        fps = round(1000 / latency, 2)  # Frames per second
+        fps = round(1000 / latency, 2)  # frames per second - if interested
         model_size = round(os.path.getsize(model_path) / (1024 * 1024), 2)  # MB
 
         return {
@@ -256,9 +224,8 @@ class InferenceStation():
         for i in range(len(all_images)):
             image_path = os.path.join(data_path, "images", "test", all_images[i])
             label_path = os.path.join(data_path, "labels_class", "test", all_labels[i])
-            #image = cv2.imread(image_path)
             
-            #each element in the list contains [class, x, y, width, height] - x y width height are normalized w respect to totlal image size
+            #each element in the list contains [class, x, y, width, height] - x y width height are normalized with respect to totlal image size
             true_box_classes = torch.tensor([list(map(float, line.split())) for line in open(label_path)], dtype=torch.float32)
             true_boxes = true_box_classes[:, 1:]
             true_box_xyxy = box_cxcywh_to_xyxy(true_boxes)
@@ -268,7 +235,8 @@ class InferenceStation():
             modelClass.to(self.device)
             with torch.no_grad():
                 output = modelDetect(image_path)
-
+                
+                batches = 0
                 for result in output:#for every detected object - get iou and then work with the ViT
                     class_labels_stacked = []
                     class_images_stacked = []
@@ -286,8 +254,8 @@ class InferenceStation():
                         w = predictions[i][2].item() * class_image.shape[2] - x
                         h = predictions[i][3].item() * class_image.shape[1] - y
                         seed = class_image[:, int(y):int(y+h), int(x):int(x+w)]
+                        imgTemp = transform(seed.to(torch.float32)/255.0).unsqueeze(0)#normalize and convert to tensor
                         
-                        imgTemp = transform(seed.to(torch.float32)/255.0).unsqueeze(0)
                         class_images_stacked.append(imgTemp)
                         class_labels_stacked.append(best_true_match[i])
 
@@ -298,17 +266,18 @@ class InferenceStation():
                     class_images_stacked = class_images_stacked.to(self.device)
                     class_labels_stacked = class_labels_stacked.to(self.device)
 
-                    outputs = modelClass(class_images_stacked)#need to unsqueeze because normally a data loader would do this
+                    outputs = modelClass(class_images_stacked)
                     _, preds = torch.max(outputs, 1)  # Get predicted class indices
                     correct_class += (preds == class_labels_stacked).sum().item()
                     total += class_labels_stacked.size(0)
                     precision_class += precision_score(class_labels_stacked.cpu().numpy(), preds.cpu().numpy(), average='macro', zero_division=1)
                     recall_class += recall_score(class_labels_stacked.cpu().numpy(), preds.cpu().numpy(), average='macro', zero_division=1)
+                    batches+=1
                 
         #final metrics for the ViT
         accuracy = correct_class / total
-        precision_class = precision_class / len(dls.dl_validate_classification)
-        recall_class = recall_class / len(dls.dl_validate_classification)
+        precision_class = precision_class / (batches * len(all_images))
+        recall_class = recall_class / (batches * len(all_images))
         f1 = 2 * (precision_class * recall_class) / (precision_class + recall_class)
 
         metrics_yolo = modelDetect.val(data = os.path.join(data_path, "data.yaml"), save_json = False)
@@ -320,6 +289,7 @@ class InferenceStation():
 
 
 
+#Helper method to convert center x, center y, width, height to x1, y1, x2, y2 of the bounding box - useful for cropping out the plant seeds for ViT
 def box_cxcywh_to_xyxy(x):
     cx, cy, w, h = x.unbind(-1)
     x1 = cx - w / 2
