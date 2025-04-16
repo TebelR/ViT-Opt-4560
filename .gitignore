@@ -175,3 +175,5 @@ runs/
 data/classificationSynthetic
 data/detection
 data/syntheticData
+data/detection
+data/syntheticForTest
