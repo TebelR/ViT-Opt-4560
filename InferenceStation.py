@@ -17,7 +17,7 @@ class InferenceStation():
     process_memory = process.memory_info().rss
 
     def __init__(self):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cpu")#torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
     
@@ -51,8 +51,9 @@ class InferenceStation():
             output = torch.nn.functional.softmax(output, dim=1).cpu()
             top3 = (output.topk(3, dim=1).indices[0], output.topk(3, dim=1).values[0])
 
-            # for i, p in zip(top3[0], top3[1]):
-            #     reverse_classNameIndices = {v: k for k, v in classNameIndices.items()}
+            for i, p in zip(top3[0], top3[1]):
+                reverse_classNameIndices = {v: k for k, v in classNameIndices.items()}
+                classNamePredictions.append((reverse_classNameIndices[i], p.item()))
             return classNamePredictions
         
 
@@ -170,7 +171,6 @@ class InferenceStation():
                     h = float(seedCrop["bottom"]) * image.shape[1] - y
                     seed = image[:, int(y):int(y+h), int(x):int(x+w)]
                     #classify the seed
-                    
                     preds = self.inferOnClassification(seed, modelClass, dls)
                     #draw the box, confidence and labels for the seed
                     cv2.rectangle(imageCV2, (round(x/rescaleFactorX), round(y/rescaleFactorY)), (round((x+w)/rescaleFactorX), round((y+h)/rescaleFactorY)), (0, 255, 0), 2)
