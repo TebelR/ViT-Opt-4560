@@ -48,7 +48,7 @@ class QuantStation():
         
         custom_qconfig = qconfig.default_qconfig
         conv_qconfig = qconfig.default_per_channel_qconfig
-        if dtype_incoming == torch.float16:
+        if dtype_incoming == torch.float16:#Using this here will throw an error
             conv_qconfig = qconfig.per_channel_dynamic_qconfig
             custom_qconfig = qconfig.float16_dynamic_qconfig
         
@@ -196,7 +196,7 @@ class QuantStation():
             if isinstance(module, torch.nn.Conv2d):
                 custom_qconfig_mapping.set_module_name(name, conv2d_custom_qconfig)
                 
-            elif isinstance(module, torch.nn.Linear):# and "qkv" not in name:# and "head" not in name:#DO not touch qkv and head linear layers
+            elif isinstance(module, torch.nn.Linear):#do not touch qkv and head linear layers
                 custom_qconfig_mapping.set_module_name(name, linear_custom_qconfig)
             else:
                 custom_qconfig_mapping.set_module_name(name, None)#make sure that nothing else gets quantized

@@ -9,9 +9,13 @@ import cv2
 from sklearn.metrics import precision_score, recall_score
 from timeit import default_timer as timer 
 import torchvision.ops as ops
+import psutil
 class InferenceStation():
     device = "cpu"
     record_mem_use = False
+    process = psutil.Process(os.getpid())#capture this process to track its mem usage
+    process_memory = process.memory_info().rss
+
     def __init__(self):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -30,10 +34,16 @@ class InferenceStation():
             imgTemp = transform(image.to(torch.float32)/255.0).unsqueeze(0)
             imgTemp = imgTemp.to(self.device)
             if self.record_mem_use: 
-                print(f"Before inference on ViT on a seed: {torch.cuda.memory_allocated() / 1024**2:.2f} MB")
+                if(self.device.type == "cuda"):
+                    print(f"Before inference on ViT on a seed: {torch.cuda.memory_allocated() / 1024**2:.2f} MB")
+                else:
+                    print(f"Before inference on ViT on a seed: {self.process.memory_info().rss / 1024**2:.2f} MB")
             output = model(imgTemp)
             if self.record_mem_use: 
-                print(f"After inference on ViT on a seed: {torch.cuda.memory_allocated() / 1024**2:.2f} MB")
+                if(self.device.type == "cuda"):
+                    print(f"After inference on ViT on a seed: {torch.cuda.memory_allocated() / 1024**2:.2f} MB")
+                else:
+                    print(f"After inference on ViT on a seed: {self.process.memory_info().rss / 1024**2:.2f} MB")
                 self.record_mem_use = False
             #map the existing classes to the output to see which class names are predicted
             classNameIndices = dls.dataset_classification.indexed_classes
@@ -124,11 +134,15 @@ class InferenceStation():
             if(self.device.type == "cuda"):
                 torch.cuda.synchronize()
                 print(f"Before inference on YOLO: {torch.cuda.memory_allocated() / 1024**2:.2f} MB")
+            else:
+                print(f"Before inference on YOLO: {self.process.memory_info().rss / 1024**2:.2f} MB")
             #first, create bounding boxes from the image
             output = modelDetect(imageCV2) #img_path
             if(self.device.type == "cuda"):
                 torch.cuda.synchronize()
                 print(f"After inference on YOLO: {torch.cuda.memory_allocated() / 1024**2:.2f} MB")
+            else:
+                print(f"After inference on YOLO: {self.process.memory_info().rss / 1024**2:.2f} MB")
             #since the input image resolution could've been resized to fit YOLO, normalized coordinates of boxes are used
             detectedSeeds = []
             for result in output:

@@ -1,8 +1,5 @@
 import os
 import torch
-# import matplotlib.pyplot as plt
-# import numpy as np
-# import torchvision
 from InferenceStation import InferenceStation
 from timeit import default_timer as timer 
 
@@ -37,14 +34,6 @@ def print_size_of_model(model):
                 num_ints += tensor.numel()
     print(f"Number of floats: {num_floats}")
     print(f"Number of ints: {num_ints}")
-    #print_param_types(model)
-
-# def print_param_types(model):
-#     for name, tensor in model.state_dict().items():
-#         if isinstance(tensor, torch.Tensor):
-#             print(f"{name}: {tensor.shape}, dtype: {tensor.dtype}")
-#         #else:
-#             #print(f"{name}: {tensor}") #this may cause an explosion
     
 
 
@@ -53,7 +42,6 @@ def check_stats_detection(model, name):
     inferS = InferenceStation()
     print("\n" + name)
     metricsInfo = inferS.inferQuantizedDetection(model)
-    # print("Stat check: f1: {} mAP50: {} mAP50-95: {} Recall: {} Latency (ms): {} FPS: {} Model Size (MB): {} Total Time (s): {}".format(metricsInfo[1], metricsInfo[2], metricsInfo[3], metricsInfo[4], metricsInfo[5], metricsInfo[6], metricsInfo[7], metricsInfo[8]))
     print("\n---------Evaluation Results---------")
     for key, value in metricsInfo.items():
         print(f"{key}: {value}")

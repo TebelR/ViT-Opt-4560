@@ -11,3 +11,7 @@ torch==2.6.0+cu126
 torchvision==0.21.0+cu126
 tqdm==4.67.1
 ultralytics==8.3.73
+onnxruntime-gpu==1.21.0
+onnx==1.17.0
+onnxslim==0.1.50
+tensorrt==10.9.0.34
