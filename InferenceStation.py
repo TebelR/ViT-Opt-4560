@@ -53,7 +53,7 @@ class InferenceStation():
 
             for i, p in zip(top3[0], top3[1]):
                 reverse_classNameIndices = {v: k for k, v in classNameIndices.items()}
-                classNamePredictions.append((reverse_classNameIndices[i], p.item()))
+                classNamePredictions.append((reverse_classNameIndices[i.item()], p.item()))
             return classNamePredictions
         
 
